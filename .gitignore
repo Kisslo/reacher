@@ -1,0 +1,12 @@
+*.db
+*.db-wal
+*.db-shm
+*.xlsx
+*.xls
+.env
+
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
