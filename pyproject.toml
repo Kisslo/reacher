@@ -1,0 +1,51 @@
+[project]
+name = "reacher"
+version = "0.1.0"
+description = "Rangordnade ringlistor för Topseats fältteam"
+readme = "README.md"
+authors = [
+    { name = "LisaVMB"},
+    { name = "MiguelBerly"},
+    { name = "dj4mcd8dhekhy"},
+    { name = "ludvig-moller"},
+    { name = "JohnnySjoblom"},
+]
+requires-python = ">=3.12"
+dependencies = [
+    "openpyxl>=3.1.5",
+    "phonenumbers>=9.0.39",
+    "pydantic>=2.13.5",
+    "pyyaml>=6.0.3",
+    "typer>=0.27.2",
+]
+
+[project.scripts]
+reacher = "reacher.cli:app"
+
+[project.optional-dependencies]
+# Riktiga datakällor. Installeras med `uv sync --extra sources` när adaptrarna finns.
+sources = [
+    "httpx>=0.27",
+    "tenacity>=8.3",
+    "trafilatura>=1.9",
+    "anthropic>=0.40",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.8",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
