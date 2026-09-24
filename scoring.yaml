@@ -1,0 +1,9 @@
+# Startvärden från specen. De två sista är antaganden som ska testas mot
+# utfallet och tas bort om de inte håller - höj versionen när du ändrar något.
+version: "v1"
+half_life_days: 90
+weights:
+  advertises_chair:    5
+  unmet_search_demand: 3
+  registered_recently: 1
+  small_employer:      1
