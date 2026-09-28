@@ -36,7 +36,7 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 |---|---|---|---|---|
 | J-01 | [#7](https://github.com/Kisslo/reacher/issues/7) | Sign off handoff formats | 2 | Todo, Monday |
 | J-02 | [#8](https://github.com/Kisslo/reacher/issues/8) | Remove Orgnr column from the Excel contract | 2 | Todo |
-| T2-01 | [#15](https://github.com/Kisslo/reacher/issues/15) | Scoring from salon facts | 2 | Todo, can start on own mocks |
+| T2-01 | [#15](https://github.com/Kisslo/reacher/issues/15) | Scoring from salon facts | 2 | In progress |
 | T2-03 | [#16](https://github.com/Kisslo/reacher/issues/16) | Excel export per the contract | 3 | Todo (after J-02) |
 | T2-02 | [#17](https://github.com/Kisslo/reacher/issues/17) | Rank, split per salesperson, freeze the snapshot | 3 | Waits on T1-05 |
 | T2-04 | [#18](https://github.com/Kisslo/reacher/issues/18) | Import outcomes from returned xlsx | 4 | Todo |
@@ -56,5 +56,5 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 
 ## Team 2 open questions
 - How is "reached" defined in the report: are "Ej nådd" rows excluded from the denominator? (T2-06)
-- Where does the 24-month threshold for `registered_recently` live: in `scoring.yaml` or as a named constant? Changing `scoring.yaml`'s shape means updating `test_config.py`. (T2-01)
+- ~~Where does the 24-month threshold for `registered_recently` live?~~ Resolved (T2-01): in `scoring.yaml` under `thresholds`, because it's tuning. `registered_recently_months: 24` counts calendar months, inclusive, from the day the list is built. `small_employer_classes: ["2"]` holds SCB size-class codes as quoted text (`"2"` = 1–4 employees; `"0"` = data missing, which never counts). Weights version bumped to `v2`.
 - How are rows split between the two salespeople: alternating by rank, or by area? (T2-02)
