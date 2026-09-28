@@ -29,7 +29,7 @@ The two teams connect through one agreed data format: the filtered salon list th
 
 **Your first task is to help both teams agree on these two formats.** Until real data exists, Team 2 works against realistic mock data in the agreed format, so neither team blocks the other. Any change to the formats must be agreed by both teams and logged under decisions.
 
-### Format 1: Salon list (Team 1 → Team 2). *Proposed, pending Team 2 sign-off*
+### Format 1: Salon list (Team 1 → Team 2).
 The handoff is the SQLite database, not a separate file. Team 1 writes `salon` and `contact` (and later `signal`), and Team 2 reads them. Team 2's mock data is fixture CSVs loaded into the same tables with `reacher load-seed`, so mock and real data can't drift apart.
 
 At the source boundary, the shape is `RawSalon` / `RawSignal` in `src/reacher/sources/base.py`. It lives on branch `F3-source-contract`, which is pushed but not yet merged.
@@ -52,7 +52,7 @@ Rules:
 - **Addition (D10, pending Team 2 sign-off in J-01):** raw compliance fields on `salon`, all available from SCB's old API: `legal_form`, `ftax`, `vat_registered`, `employer_registered` and `ad_block` (SCB "reklamspärr"). The flags are 1 / 0 / NULL, where NULL means unknown.
 - Phone and website come from SCB (D9). Email is **not stored** until there is a use for it (data minimisation). *Assumption.*
 
-### Format 2: Block list (Team 2 → Team 1). *Agreed in principle by Team 1, pending Team 2 sign-off*
+### Format 2: Block list (Team 2 → Team 1).
 The `suppression` table holds one row per (orgnr, reason):
 - `opt_out`: Team 2 writes it when importing "Spärra". It is never deleted and never rebuilt from an Excel file.
 - `existing_customer`: Team 2 writes it when importing "Registrerad" (D13). There is no full customer list yet because we have no Topseat DB access (D8).
