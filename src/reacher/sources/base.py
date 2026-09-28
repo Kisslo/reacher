@@ -45,7 +45,6 @@ class RawSalon:
     postal_code: str | None = None
     city: str | None = None
     municipality: str | None = None
-    area: str | None = None
     employee_class: str | None = None
     registered_at: date | None = None
     website: str | None = None
