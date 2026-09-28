@@ -18,7 +18,7 @@ COMPLIANCE_COLUMNS = (
 def test_migrate_is_idempotent(tmp_path):
     db = tmp_path / "t.db"
     with closing(connect(db)) as conn:
-        assert migrate(conn) == [1, 2]
+        assert migrate(conn) == [1, 2, 3]
     with closing(connect(db)) as conn:
         assert migrate(conn) == []  # andra körningen gör ingenting
 
@@ -82,3 +82,11 @@ def test_compliance_fields_store_unknown_codes_raw(tmp_path):
         assert row["ftax_status"] == "7"  # okänd kod, lagrad som den kom
         assert row["ad_status"] == "99"
         assert row["legal_form"] is None  # källan sa ingenting
+
+
+def test_salon_has_no_area_column(tmp_path):
+    """Område i Excel kommer från city. En area-kolumn utan källa ska inte komma tillbaka."""
+    with closing(connect(tmp_path / "t.db")) as conn:
+        migrate(conn)
+        columns = {r["name"] for r in conn.execute("PRAGMA table_info(salon)")}
+        assert "area" not in columns and "city" in columns

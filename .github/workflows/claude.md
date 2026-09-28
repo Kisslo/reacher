@@ -141,6 +141,8 @@ You don't remember previous conversations. At the end of each working session, w
 | D16 | 2026-09-25 | Claude context is split: a shared `claude.md` plus `claude.team1.md` / `claude.team2.md`, loaded through a local root `CLAUDE.md`. |
 | D17 | 2026-09-25 | Supersedes D2. The shared `claude.md` and both team files are **committed**, so every team member gets the same context through git and changes are reviewed in PRs. Only the per-person root `CLAUDE.md` loader is ignored (`/CLAUDE.md` in `.gitignore`). |
 | D18 | 2026-09-28 | **Approved by both teams.** Supersedes D10's field names and types. Compliance fields are raw SCB codes stored as TEXT: `legal_form`, `ftax_status`, `vat_status`, `employer_status`, `ad_status` (company) and `workplace_ad_status` (workplace). Reason: SCB's Variabelbeskrivning shows they are multi-valued codes, and the Reklam code also carries the phone block and NIX status, which a boolean would lose (failing open). The source and ingest never interpret them; `callable_salon` lists the allowed codes explicitly, so unknown codes fail closed. No CHECK constraints on the codes. |
+| D19 | 2026-09-28 | `area` is removed from `RawSalon` and `salon` (migration 003). SCB has no district variable; "Område" in the Excel file shows `salon.city` (BesöksPostOrt). The address comes from the Besöks* fields, never Postadress or Säteskommun (for a sole proprietorship those are the owner's home). |
+
 
 ---
 
@@ -246,7 +248,7 @@ The list works when salons in the **top 20** respond "Interested" or "Registered
 - **For Team 2 (from the SCB docs):** employee size class code `0` = "data missing", `1` = 0 employees, `2` = 1–4 (don't use the AnstSME scale). "Registreringsdatum" is the date of entry in SCB's register, and "Startdatum" (became active) may fit `registered_recently` better.
 - **Salon name:** SCB's "Företagsnamn" is the owner's personal name for a sole proprietorship. Proposal: use "Benämning" (the workplace's everyday name), then "Firma", then "Företagsnamn".
 - **orgnr normalisation (T1-04):** SCB's PeOrgNr is 12 digits. Legal persons have the prefix `16`, sole proprietorships `19`/`20` (personnummer). Normalisation must handle both.
-- **Area ("Område"):** SCB gives municipality and postal code, not district. For the MVP, `area` = postal town. *Assumption.*
+- ~~**Area ("Område"):** SCB gives municipality and postal code, not district. For the MVP, `area` = postal town. *Assumption.*~~
 
 ## Plan (weeks 2–10)
 | Week | Dates | Goal | Friday demo |
