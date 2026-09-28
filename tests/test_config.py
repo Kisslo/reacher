@@ -10,7 +10,13 @@ from reacher.config import ScoringConfig
 REPO_ROOT = Path(__file__).resolve().parents[1]
 COMMITTED_CONFIG = REPO_ROOT / "scoring.yaml"
 
-VALID = {"version": "v1", "half_life_days": 90, "weights": {"advertises_chair": 5}}
+THRESHOLDS = {"registered_recently_months": 24, "small_employer_classes": ["2"]}
+VALID = {
+    "version": "v1",
+    "half_life_days": 90,
+    "weights": {"advertises_chair": 5},
+    "thresholds": THRESHOLDS,
+}
 
 
 def test_committed_config_parses():
@@ -39,7 +45,12 @@ def test_typo_in_a_top_level_key_is_rejected():
     """Ett stavfel som weigths ska explodera, inte tyst ge noll poäng."""
     with pytest.raises(ValidationError):
         ScoringConfig.model_validate(
-            {"version": "v1", "half_life_days": 90, "weigths": {"advertises_chair": 5}}
+            {
+                "version": "v1",
+                "half_life_days": 90,
+                "weigths": {"advertises_chair": 5},
+                "thresholds": THRESHOLDS,
+            }
         )
 
 
@@ -50,8 +61,31 @@ def test_half_life_must_be_positive(bad):
         ScoringConfig.model_validate({**VALID, "half_life_days": bad})
 
 
-@pytest.mark.parametrize("missing", ["version", "half_life_days", "weights"])
+@pytest.mark.parametrize("missing", ["version", "half_life_days", "weights", "thresholds"])
 def test_every_field_is_required(missing):
     payload = {k: v for k, v in VALID.items() if k != missing}
     with pytest.raises(ValidationError):
         ScoringConfig.model_validate(payload)
+
+
+@pytest.mark.parametrize("bad", [0, -24])
+def test_registered_recently_months_must_be_positive(bad):
+    with pytest.raises(ValidationError):
+        ScoringConfig.model_validate(
+            {**VALID, "thresholds": {**THRESHOLDS, "registered_recently_months": bad}}
+        )
+
+
+def test_typo_in_a_threshold_key_is_rejected():
+    with pytest.raises(ValidationError):
+        ScoringConfig.model_validate(
+            {**VALID, "thresholds": {**THRESHOLDS, "registered_recently_month": 24}}
+        )
+
+
+def test_size_class_codes_must_be_quoted_in_yaml():
+    """employee_class är TEXT. Okvoterat [2] i YAML blir int och skulle aldrig matcha "2"."""
+    with pytest.raises(ValidationError):
+        ScoringConfig.model_validate(
+            {**VALID, "thresholds": {**THRESHOLDS, "small_employer_classes": [2]}}
+        )

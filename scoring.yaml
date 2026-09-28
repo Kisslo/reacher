@@ -1,9 +1,17 @@
 # Startvärden från specen. De två sista är antaganden som ska testas mot
 # utfallet och tas bort om de inte håller - höj versionen när du ändrar något.
-version: "v1"
+version: "v2"
 half_life_days: 90
 weights:
   advertises_chair:    5
   unmet_search_demand: 3
   registered_recently: 1
   small_employer:      1
+
+# Gränser för de signaler Team 2 härleder själv (D6).
+thresholds:
+  # Registrerad för högst så här många kalendermånader sedan.
+  registered_recently_months: 24
+  # SCB Storleksklass Anställda: "2" = 1-4 anställda. "0" = uppgift saknas,
+  # "1" = 0 anställda. Citattecknen behövs: koderna är text i databasen.
+  small_employer_classes: ["2"]
