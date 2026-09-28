@@ -1,18 +1,19 @@
 """Gränssnittet mot alla datakällor. Inga implementationer här.
 
-Fixtures (A1 skriver, A3 läser) är två CSV-filer med rubrikrad:
+Fixtures (T1-03 skriver, T1-04 läser) är två CSV-filer med rubrikrad:
 - salons.csv har exakt kolumnerna i CSV_COLUMNS, i den ordningen.
 - signals.csv har exakt kolumnerna i SIGNAL_CSV_COLUMNS, en rad per signal.
   (orgnr, cfar) pekar på en rad i salons.csv. En signal utan matchande salong
   är ett fel i fixturen och ska avvisas, inte hoppas över.
 
 Format i båda:
+- SCB-koder (legal_form, *_status) som text precis som i källan, t.ex. "1".
 - UTF-8, komma som avgränsare.
 - Tom cell betyder None. Inga "NULL" eller "-". Tom cfar matchar tom cfar.
 - Datum som ÅÅÅÅ-MM-DD.
-- orgnr och phone som de står i källan. Normalisering sker vid ingest (A4/A5),
-  så att fixtures kan innehålla samma röra som riktig registerdata (A6).
-- Ground truth (has_empty_chairs) finns aldrig i någon av filerna - se A2.
+- orgnr och phone som de står i källan. Normalisering sker vid ingest (T1-04),
+  så att fixtures kan innehålla samma röra som riktig registerdata.
+- Ground truth (has_empty_chairs) finns aldrig i någon av filerna - se T1-03.
 """
 
 from collections.abc import Iterator
@@ -49,6 +50,15 @@ class RawSalon:
     registered_at: date | None = None
     website: str | None = None
     phone: str | None = None
+    # Råa SCB-koder, exakt som källan levererar dem. Tolkas BARA i vyn
+    # callable_salon (D11), aldrig här: en feltolkning ska gå att rätta utan
+    # att hämta om data. None = källan sa ingenting. Koder: SCB:s Variabelbeskrivning.
+    legal_form: str | None = None  # Juridisk form, "10" = enskild näringsidkare
+    ftax_status: str | None = None  # F-skattstatus: 0 / 1 / 9
+    vat_status: str | None = None  # Momsstatus: 0 / 1 / 3 / 9
+    employer_status: str | None = None  # Arbetsgivarstatus: 0-4 / 9
+    ad_status: str | None = None  # Reklam på företaget: 11-13 / 21-23
+    workplace_ad_status: str | None = None  # Reklam på arbetsstället
     # MVP: bara fixture-källan fyller i den här. Riktiga signaler kommer från
     # andra källor än salongerna (webbläsaren, Places) och får då en egen
     # SignalSource. RawSignal följer med oförändrad när det händer.
