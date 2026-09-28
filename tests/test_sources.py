@@ -40,10 +40,10 @@ def test_salon_carries_its_signals():
 
 
 def test_csv_columns_follow_raw_salon():
-    """A1 och A3 bygger på den här ordningen; ändras den ska det märkas."""
+    """T1-03 och T1-04 bygger på den här ordningen; ändras den ska det märkas."""
     assert CSV_COLUMNS[:2] == ("orgnr", "name")
     assert "signals" not in CSV_COLUMNS  # signaler ligger i signals.csv
-    assert len(CSV_COLUMNS) == 13
+    assert len(CSV_COLUMNS) == 19
 
 
 def test_signal_csv_columns_link_to_salon_and_mirror_the_table():
@@ -61,3 +61,21 @@ def test_signal_csv_columns_link_to_salon_and_mirror_the_table():
 def test_scb_stub_fails_loudly():
     with pytest.raises(NotImplementedError):
         next(iter(ScbApiSource().fetch()))
+
+
+COMPLIANCE_FIELDS = (
+    "legal_form",
+    "ftax_status",
+    "vat_status",
+    "employer_status",
+    "ad_status",
+    "workplace_ad_status",
+)
+
+
+def test_compliance_fields_default_to_unknown():
+    """None betyder att källan inte sa något. Vyn behandlar det som 'får ej ringas'."""
+    salon = RawSalon(orgnr="5561234567", name="Klipp & Co")
+    for field in COMPLIANCE_FIELDS:
+        assert getattr(salon, field) is None
+        assert field in CSV_COLUMNS

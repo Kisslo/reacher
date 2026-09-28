@@ -8,7 +8,7 @@ Turn raw register data into clean, deduplicated `salon` + `contact` rows, and ow
 ## What we own
 | Area | Where |
 |---|---|
-| Source contract (`RawSalon`, `RawSignal`, `SalonSource`) | `src/reacher/sources/base.py` (branch `F3-source-contract`, on hold per D14) |
+| Source contract (`RawSalon`, `RawSignal`, `SalonSource`) | `src/reacher/sources/base.py` (merged in PR #6) |
 | Source adapters: CSV and SCB (old API now, new API later, D5) | `src/reacher/sources/` |
 | Ingest: normalisation + upsert into `salon` / `contact` | `reacher ingest`, `reacher load-seed` |
 | Fixtures + hidden ground truth | `tests/fixtures/` |
@@ -26,7 +26,8 @@ Turn raw register data into clean, deduplicated `salon` + `contact` rows, and ow
   - phone: E.164 via `phonenumbers` (region SE).
   - An invalid orgnr is rejected, never inserted.
 - **Fail closed on compliance.** Unknown F-skatt/VAT/employer status for a sole proprietorship means excluded (D11). When unsure whether a salon may be called, the answer is no. Missing a lead is cheap; calling someone we mustn't is not.
-- **Reklamspärr and NIX are different things.** Both apply (exclusion #4 and #3).
+- **Store SCB codes raw (D18).** `legal_form` and the `*_status` fields are TEXT exactly as SCB sends them. Never turn them into booleans or interpret them in the source or at ingest; only `callable_salon` decides. List the **allowed** codes explicitly (`IN ('1','3')`), never `!= '0'`, so an unknown or new code fails closed.
+- **Reklamspärr and NIX are different rules, but one SCB field carries both.** The Reklam code's 1st digit is reklamspärr and its 2nd digit is the phone block / NIX-Telefon. Check it on both company and workplace level.
 - **No orgnr, no row.** A salon without an orgnr can't be blocked, so it can't enter the database.
 - **Ingest is idempotent.** Running it twice gives the same database. Keep `first_seen_at` and update `last_seen_at`.
 - **Data minimisation:** don't store email (Format 1).
@@ -38,7 +39,7 @@ Turn raw register data into clean, deduplicated `salon` + `contact` rows, and ow
 | ID | Issue | Title | Week | Status |
 |---|---|---|---|---|
 | J-01 | [#7](https://github.com/Kisslo/reacher/issues/7) | Sign off handoff formats | 2 | Todo, Monday |
-| T1-01 | [#9](https://github.com/Kisslo/reacher/issues/9) | Land the source contract with compliance fields | 2 | Waiting on D14 |
+| T1-01 | [#9](https://github.com/Kisslo/reacher/issues/9) | Land the source contract with compliance fields | 2 | In progress (branch `T1-01-compliance-fields`) |
 | T1-02 | [#10](https://github.com/Kisslo/reacher/issues/10) | Migration 002: compliance fields on salon | 2 | Todo |
 | T1-08 | [#11](https://github.com/Kisslo/reacher/issues/11) | Document the SCB old-API variables | 2 | Todo, can start now |
 | T1-03 | [#12](https://github.com/Kisslo/reacher/issues/12) | Realistic fixture data + ground truth | 2 | Todo, **Team 2 waits on this** |
@@ -52,13 +53,13 @@ Turn raw register data into clean, deduplicated `salon` + `contact` rows, and ow
 The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
 
 ## Team status
-*Session 1 (2026-09-25)*
-- **Done:** nothing beyond the foundation.
-- **In progress:** F3 source contract on branch `F3-source-contract`, pushed but no PR (on hold, D14).
+*Session 2 (2026-09-28)*
+- **Done:** F3 source contract merged (PR #6). Team 2 approved the D18 field types (2026-09-28).
+- **In progress:** T1-01 (#9) on branch `T1-01-compliance-fields`.
 - **Blocked:** credentials for SCB's old API.
-- **Next up:** J-01 on Monday → T1-08 and T1-02 → T1-01 (once D14 is lifted) → T1-03.
+- **Next up:** T1-01 PR → T1-02 (#10, migration 002) → T1-08 (#11, the SCB PDF answers most of it) → T1-03 (#12, fixtures using real SCB codes).
 
 ## Team 1 open questions
 - When do the SCB credentials arrive? If not by the end of week 4, escalate.
-- The old API's variable list (T1-08): legal-form codes, the reklamspärr representation, the SNI version.
-- When is the hold on F3 lifted? T1-03 → T1-05 wait on it.
+- Still to verify against a real SCB response (T1-08): codes as JSON strings or numbers, and the exact 5-digit SNI codes.
+- The three rules T1-05 (#14) needs (Reklam codes, Arbetsgivarstatus `2`, unknown legal form): see Open questions in the shared file.

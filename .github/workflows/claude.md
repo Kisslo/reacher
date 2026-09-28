@@ -49,7 +49,16 @@ Rules:
 - The `signal` table is unused in the MVP. Evidence-based signals (`advertises_chair`, `unmet_search_demand`) are parked (D4). When they are picked up:
   - Observing an existing signal again refreshes its `observed_at`. Otherwise the 90-day half-life decays a signal that is still true.
   - An AI quote counts only if it is a verbatim substring of the fetched page text, and code checks this. The LLM's word is not enough.
-- **Addition (D10, pending Team 2 sign-off in J-01):** raw compliance fields on `salon`, all available from SCB's old API: `legal_form`, `ftax`, `vat_registered`, `employer_registered` and `ad_block` (SCB "reklamspärr"). The flags are 1 / 0 / NULL, where NULL means unknown.
+- **Compliance fields (D10, D18):** raw SCB codes on `salon`, stored as TEXT exactly as SCB delivers them. NULL means the source said nothing. They are interpreted **only** in `callable_salon`, never at the source or at ingest.
+
+  | Field | SCB variable | Codes (SCB Variabelbeskrivning) |
+  |---|---|---|
+  | `legal_form` | Juridisk form | 2 digits; `10` = sole proprietorship (Fysiska personer), `49` = AB, `99` = not determined |
+  | `ftax_status` | F-skattstatus | `0` never · `1` registered · `9` deregistered |
+  | `vat_status` | Momsstatus | `0` never · `1` registered · `3` via representative · `9` deregistered |
+  | `employer_status` | Arbetsgivarstatus | `0` never · `1` normal · `2` private employer · `3` via representative · `4` embassy · `9` deregistered |
+  | `ad_status` | Reklam (company) | 1st digit: `1` accepts ads, `2` opted out · 2nd digit: `1` no phone block, `2` telemarketing block, `3` NIX-Telefon |
+  | `workplace_ad_status` | Reklam (workplace) | Same codes as `ad_status` |
 - Phone and website come from SCB (D9). Email is **not stored** until there is a use for it (data minimisation). *Assumption.*
 
 ### Format 2: Block list (Team 2 → Team 1).
@@ -123,14 +132,15 @@ You don't remember previous conversations. At the end of each working session, w
 | D7 | 2026-09-25 | Block list = the `suppression` table: per orgnr, filtered at export time through a shared `callable_salon` view (pending Team 2 sign-off). |
 | D8 | 2026-09-25 | The existing-customer exclusion is **not applied** until we have Topseat data access. Known gap: salespeople may call existing customers (partly covered by D13). |
 | D9 | 2026-09-25 | Waiting for access to SCB's free API. It includes phone, email and website, so no scraping or Google Places is needed for the MVP. |
-| D10 | 2026-09-25 | `salon` gets raw fields `legal_form`, `ftax`, `vat_registered`, `employer_registered` and `ad_block` (reklamspärr) (pending Team 2 sign-off). |
-| D11 | 2026-09-25 | `callable_salon` excludes: any `suppression` row; `ad_block = 1`; sole proprietorships lacking all three of F-skatt/VAT/employer, where **unknown (NULL) counts as lacking** (fail closed). |
+| D10 | 2026-09-25 | `salon` gets raw compliance fields from SCB's old API. ~~Booleans `ftax`, `vat_registered`, `employer_registered`, `ad_block`.~~ Field names and types superseded by D18. |
+| D11 | 2026-09-25 | `callable_salon` excludes: any `suppression` row; reklamspärr/phone block (exact codes pending, see Open questions); sole proprietorships lacking all three of F-skatt/VAT/employer, where **unknown (NULL) counts as lacking** (fail closed). |
 | D12 | 2026-09-25 | **GDPR:** no orgnr in the Excel file. The "Orgnr" column is removed from `contract.py` (J-02). The Salon column shows the name only. |
 | D13 | 2026-09-25 | Importing "Registrerad" writes an `existing_customer` suppression row. |
-| D14 | 2026-09-25 | Hold `F3-source-contract`: no PR for now. |
+| D14 | 2026-09-25 | ~~Hold `F3-source-contract`: no PR for now.~~ Resolved: F3 merged as PR #6. |
 | D15 | 2026-09-25 | Week 2 = ISO week 40 (starts 2026-09-28). Week 10 ends 2026-11-27. Two devs per team. Start small: **one municipality and two salespeople**, both configurable. *Assumption.* |
 | D16 | 2026-09-25 | Claude context is split: a shared `claude.md` plus `claude.team1.md` / `claude.team2.md`, loaded through a local root `CLAUDE.md`. |
 | D17 | 2026-09-25 | Supersedes D2. The shared `claude.md` and both team files are **committed**, so every team member gets the same context through git and changes are reviewed in PRs. Only the per-person root `CLAUDE.md` loader is ignored (`/CLAUDE.md` in `.gitignore`). |
+| D18 | 2026-09-28 | **Approved by both teams.** Supersedes D10's field names and types. Compliance fields are raw SCB codes stored as TEXT: `legal_form`, `ftax_status`, `vat_status`, `employer_status`, `ad_status` (company) and `workplace_ad_status` (workplace). Reason: SCB's Variabelbeskrivning shows they are multi-valued codes, and the Reklam code also carries the phone block and NIX status, which a boolean would lose (failing open). The source and ingest never interpret them; `callable_salon` lists the allowed codes explicitly, so unknown codes fail closed. No CHECK constraints on the codes. |
 
 ---
 
@@ -167,7 +177,7 @@ Empty chairs can't be observed directly, so ranking is based on signals. Each si
 1. Salons already on Topseat. *Not applied yet: no data source (D8).*
 2. Salons that have asked not to be contacted (the permanent block list).
 3. Sole proprietorships that lack F-skatt (Swedish business tax registration), VAT registration, AND employer registration (see Rules below). Unknown status counts as lacking (D11).
-4. Companies with SCB "reklamspärr" (`ad_block`). This is a separate flag from NIX, and both apply (D11).
+4. Companies or workplaces with SCB "reklamspärr" or a phone block (`ad_status`, `workplace_ad_status`). The Reklam code also reveals NIX-Telefon registration (2nd digit `3`) (D11, D18).
 
 ### Pipeline
 ```mermaid
@@ -227,8 +237,15 @@ The list works when salons in the **top 20** respond "Interested" or "Registered
 - ~~Old SCB API fields.~~ It has legal form, F-skatt, VAT, employer status and reklamspärr (D10).
 - ~~NIX unknown status / where it lives, GDPR orgnr, existing customers.~~ Resolved as D11, D12 and D13.
 - **When do SCB credentials arrive?** If they haven't arrived by the end of week 4, escalate. The first real list depends on them.
-- **SCB field names and codes:** Team 1 needs the old API's variable list (field names, legal-form codes, the reklamspärr representation, the SNI version) so fixtures mirror the real response.
-- **F3 branch:** on hold (D14). Team 1's chain (fixtures → ingest → view) depends on the source contract, so this can't wait long.
+- ~~SCB field names and codes.~~ Largely answered by SCB's Variabelbeskrivning (D18). T1-08 (#11) documents the mapping. Still to verify against a real API response: whether codes arrive as JSON strings or numbers, and the exact 5-digit SNI 2025 codes for 96.21/96.22.
+- ~~F3 branch.~~ Merged (PR #6), so D14 is resolved.
+- **Needed before T1-05 (#14), pending both teams.** Proposed defaults, all fail closed:
+  1. **Callable Reklam codes:** only `11`. `21`–`23` = opted out; `12`/`22` = telemarketing block. `13` (NIX-Telefon, accepts ads) stays excluded until someone has checked NIX rule 6.3. The check applies to both `ad_status` and `workplace_ad_status`, and either one blocking excludes the salon.
+  2. **Arbetsgivarstatus `2` (private employer):** does **not** count as a registered employer for NIX 6.3. It's a person employing household staff, not a business. Only `1` and `3` count.
+  3. **Unknown `legal_form` (NULL or `99`):** treated as a possible sole proprietorship, so the F-skatt/VAT/employer check applies.
+- **For Team 2 (from the SCB docs):** employee size class code `0` = "data missing", `1` = 0 employees, `2` = 1–4 (don't use the AnstSME scale). "Registreringsdatum" is the date of entry in SCB's register, and "Startdatum" (became active) may fit `registered_recently` better.
+- **Salon name:** SCB's "Företagsnamn" is the owner's personal name for a sole proprietorship. Proposal: use "Benämning" (the workplace's everyday name), then "Firma", then "Företagsnamn".
+- **orgnr normalisation (T1-04):** SCB's PeOrgNr is 12 digits. Legal persons have the prefix `16`, sole proprietorships `19`/`20` (personnummer). Normalisation must handle both.
 - **Area ("Område"):** SCB gives municipality and postal code, not district. For the MVP, `area` = postal town. *Assumption.*
 
 ## Plan (weeks 2–10)
