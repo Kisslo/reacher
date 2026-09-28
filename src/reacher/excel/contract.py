@@ -29,6 +29,21 @@ COLUMNS: tuple[str, ...] = (
     "Kommentar",  # fritext
 )
 
+# Widths use the same order as COLUMNS. Excel width is measured approximately
+# in the width of one character.
+COLUMN_WIDTHS: dict[str, float] = {
+    "row_id": 10,
+    "Rang": 8,
+    "Poäng": 10,
+    "Salong": 28,
+    "Område": 18,
+    "Telefon": 18,
+    "Källa": 40,
+    "Varför vi ringer": 42,
+    "Utfall": 16,
+    "Kommentar": 40,
+}
+
 COL: dict[str, int] = {name: i for i, name in enumerate(COLUMNS, start=1)}
 
 EDITABLE = ("Utfall", "Kommentar")  # allt annat är låst
