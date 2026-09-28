@@ -5,11 +5,20 @@ import pytest
 
 from reacher.db import connect, migrate
 
+COMPLIANCE_COLUMNS = (
+    "legal_form",
+    "ftax_status",
+    "vat_status",
+    "employer_status",
+    "ad_status",
+    "workplace_ad_status",
+)
+
 
 def test_migrate_is_idempotent(tmp_path):
     db = tmp_path / "t.db"
     with closing(connect(db)) as conn:
-        assert migrate(conn) == [1]
+        assert migrate(conn) == [1, 2]
     with closing(connect(db)) as conn:
         assert migrate(conn) == []  # andra körningen gör ingenting
 
@@ -53,3 +62,23 @@ def test_foreign_keys_are_enforced(tmp_path):
                 "INSERT INTO contact (salon_id, kind, value, found_at) "
                 "VALUES (999, 'phone', '+46701234567', '2026-01-01')"
             )
+
+
+def test_compliance_fields_store_unknown_codes_raw(tmp_path):
+    """D18: råa SCB-koder, TEXT och nullable, utan CHECK. En okänd kod ska
+    lagras (och faila stängt i callable_salon), inte krascha ingest."""
+    with closing(connect(tmp_path / "t.db")) as conn:
+        migrate(conn)
+        cols = {r["name"]: r for r in conn.execute("PRAGMA table_info(salon)")}
+        for col in COMPLIANCE_COLUMNS:
+            assert cols[col]["type"] == "TEXT"
+            assert cols[col]["notnull"] == 0
+
+        conn.execute(
+            "INSERT INTO salon (orgnr, name, first_seen_at, last_seen_at, ftax_status, ad_status) "
+            "VALUES ('5561234567', 'Klipp & Co', '2026-01-01', '2026-01-01', '7', '99')"
+        )
+        row = conn.execute("SELECT * FROM salon").fetchone()
+        assert row["ftax_status"] == "7"  # okänd kod, lagrad som den kom
+        assert row["ad_status"] == "99"
+        assert row["legal_form"] is None  # källan sa ingenting
