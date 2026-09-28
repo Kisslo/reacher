@@ -21,7 +21,6 @@ COLUMNS: tuple[str, ...] = (
     "Rang",
     "Poäng",
     "Salong",
-    "Orgnr",
     "Område",
     "Telefon",
     "Källa",
