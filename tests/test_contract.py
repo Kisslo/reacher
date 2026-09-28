@@ -9,6 +9,10 @@ def test_row_id_is_first_and_hidden():
     assert "row_id" in HIDDEN
 
 
+def test_columns_do_not_contain_orgnr():
+    assert all("orgnr" not in column.lower() for column in COLUMNS)
+
+
 def test_outcome_values_are_exactly_the_five_in_the_spec():
     assert [o.value for o in Outcome] == [
         "Ej nådd",
