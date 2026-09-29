@@ -18,7 +18,7 @@ Turn raw register data into clean, deduplicated `salon` + `contact` rows, and ow
 ## What we hand over and what we consume
 - **We deliver (Format 1):** `salon` + `contact` rows with raw facts only. We never compute points or thresholds (D6).
 - **We consume (Format 2):** the `suppression` table that Team 2 writes. We don't write `opt_out` or `existing_customer`. We read them in `callable_salon`.
-- **Team 2 is blocked by us on:** T1-03 (fixtures) and T1-05 (`callable_salon`). Prioritise them.
+- **Team 2 is blocked by us on:** T1-05 (`callable_salon`), in review. Prioritise it.
 
 ## Working rules for Team 1
 - **Normalise at ingest, not in the source.** Sources yield data exactly as the register delivers it. That way every source gets the same cleaning, and fixtures can be as messy as reality.
@@ -44,7 +44,7 @@ Turn raw register data into clean, deduplicated `salon` + `contact` rows, and ow
 | T1-08 | [#11](https://github.com/Kisslo/reacher/issues/11) | Document the SCB old-API variables | 2 | Done ([docs/scb-fields.md](../../docs/scb-fields.md)) |
 | T1-03 | [#12](https://github.com/Kisslo/reacher/issues/12) | Realistic fixture data + ground truth | 2 | Todo, **Team 2 waits on this** |
 | T1-04 | [#13](https://github.com/Kisslo/reacher/issues/13) | CSV ingest and load-seed | 3 | Todo |
-| T1-05 | [#14](https://github.com/Kisslo/reacher/issues/14) | `callable_salon` view | 3 | Todo, **Team 2 waits on this** |
+| T1-05 | [#14](https://github.com/Kisslo/reacher/issues/14) | `callable_salon` view | 3 | In review |
 | J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Todo |
 | T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (old API) | 5 | Blocked: credentials |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
@@ -62,4 +62,5 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 ## Team 1 open questions
 - When do the SCB credentials arrive? If not by the end of week 4, escalate.
 - Still to verify against a real SCB response (T1-06): see the checklist in docs/scb-fields.md. SNI codes confirmed: 96210, 96220.
-- The three rules T1-05 (#14) needs (Reklam codes, Arbetsgivarstatus `2`, unknown legal form): see Open questions in the shared file.
+- ~~The three rules T1-05 (#14) needs (Reklam codes, Arbetsgivarstatus `2`, unknown legal form).~~ Resolved as D20, D21 and D22 in the shared file.
+

@@ -18,7 +18,7 @@ COMPLIANCE_COLUMNS = (
 def test_migrate_is_idempotent(tmp_path):
     db = tmp_path / "t.db"
     with closing(connect(db)) as conn:
-        assert migrate(conn) == [1, 2, 3]
+        assert migrate(conn) == [1, 2, 3, 4]
     with closing(connect(db)) as conn:
         assert migrate(conn) == []  # andra körningen gör ingenting
 
