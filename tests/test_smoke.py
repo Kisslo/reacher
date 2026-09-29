@@ -21,5 +21,7 @@ def test_help_lists_every_command():
 
 def test_unimplemented_commands_fail_loudly():
     """En tom kommandostub ska krascha, inte tyst göra ingenting."""
-    result = runner.invoke(app, ["ingest"])
-    assert result.exit_code != 0
+    # report tar bara ett argument, så anropet når stubben. Utan argument hade
+    # Typer avbrutit med ett användningsfel (exit 2) och testet passerat ändå.
+    result = runner.invoke(app, ["report", "2026w40"])
+    assert isinstance(result.exception, NotImplementedError)

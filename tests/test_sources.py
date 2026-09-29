@@ -1,5 +1,7 @@
 """Låser källkontraktet. Varje ny adapter läggs till i SOURCES."""
 
+from pathlib import Path
+
 import pytest
 
 from reacher.sources.base import (
@@ -9,9 +11,10 @@ from reacher.sources.base import (
     RawSignal,
     SalonSource,
 )
+from reacher.sources.csv_source import CsvSource
 from reacher.sources.scb import ScbApiSource
 
-SOURCES = [ScbApiSource()]
+SOURCES = [ScbApiSource(), CsvSource(Path(__file__).parent / "fixtures")]
 
 
 @pytest.mark.parametrize("source", SOURCES, ids=lambda s: s.name)
