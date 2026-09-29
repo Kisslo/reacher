@@ -136,7 +136,36 @@ def build_lists(week: str, sellers: str, db: Path = DEFAULT_DB) -> None:
 @app.command("import-outcomes")
 def import_outcomes(path: Path, db: Path = DEFAULT_DB) -> None:
     """Läs tillbaka utfall från en ifylld xlsx."""
-    raise NotImplementedError("D1")
+    from importlib import import_module
+
+    from reacher.db import connect, migrate
+
+    outcome_import = import_module("reacher.excel.import")
+    conn = connect(db)
+    try:
+        migrate(conn)
+        try:
+            summary = outcome_import.import_outcomes(conn, path)
+        except outcome_import.OutcomeImportError as error:
+            raise typer.BadParameter(str(error), param_hint="path") from error
+    finally:
+        conn.close()
+
+    typer.echo(f"Imported outcomes: {summary.imported}")
+    for outcome, count in summary.outcomes.items():
+        typer.echo(f"  {outcome}: {count}")
+    typer.echo(f"Empty outcomes: {summary.empty_outcomes}")
+    typer.echo(f"Suppressions added: {sum(summary.suppressions_added.values())}")
+
+    if summary.unknown_outcomes:
+        typer.echo(f"Unknown outcomes: {', '.join(summary.unknown_outcomes)}")
+    if summary.unknown_row_ids:
+        typer.echo(f"Unknown row IDs: {', '.join(map(str, summary.unknown_row_ids))}")
+    if summary.manual_review_row_ids:
+        typer.echo(
+            "Manual review required for comment warnings on row IDs: "
+            + ", ".join(map(str, summary.manual_review_row_ids))
+        )
 
 
 @app.command()
