@@ -1,6 +1,6 @@
 # Team 2: Scoring, output and feedback
 
-Loaded together with the shared `claude.md`. That file holds the handoff formats, decisions (D1–D17) and compliance rules, and it always wins over this one. You are talking to a member of Team 2.
+Loaded together with the shared `claude.md`. That file holds the handoff formats, decisions (D1–D19) and compliance rules, and it always wins over this one. You are talking to a member of Team 2.
 
 ## Our job in one sentence
 Take the callable salons, rank them, give each salesperson a locked Excel file, read the outcomes back in, and prove every Friday that the top 20 converts better than the rest.
@@ -16,9 +16,9 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 | Weekly report: top 20 vs the rest | `reacher report` |
 
 ## What we consume and what we hand over
-- **We consume (Format 1):** `salon` + `contact` from Team 1, **always through the `callable_salon` view** (Team 1 owns it). Never select from `salon` directly when building lists, or exclusions get bypassed.
+- **We consume (Format 1):** eligible `salon` rows through Team 1's `callable_salon` view, with phone details from the related `contact` row. Never select from `salon` directly when building lists, or exclusions get bypassed. Migration 004 exposes `salon.*`; `city` is the Excel "Område" value (D19).
 - **We deliver (Format 2):** `suppression` rows. "Spärra" → `opt_out`, "Registrerad" → `existing_customer` (D13).
-- **Until Team 1 delivers:** build against your own mock data in exactly the Format 1 shape. Switch to `tests/fixtures/` when T1-03 lands. Stub `callable_salon` until T1-05 lands.
+- **Until Team 1 delivers:** build against your own mock data in exactly the Format 1 shape. T1-03 fixtures and the T1-05 `callable_salon` view are now available in migrations.
 
 ## Working rules for Team 2
 - **"Spärra" means never again.** `opt_out` rows are never deleted, never rebuilt from Excel, and survive a later import that changes the same row's Utfall. This is a legal requirement (IMY), not a feature.
@@ -34,13 +34,13 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 ## Tickets
 | ID | Issue | Title | Week | Status |
 |---|---|---|---|---|
-| J-01 | [#7](https://github.com/Kisslo/reacher/issues/7) | Sign off handoff formats | 2 | Todo, Monday |
-| J-02 | [#8](https://github.com/Kisslo/reacher/issues/8) | Remove Orgnr column from the Excel contract | 2 | Todo |
-| T2-01 | [#15](https://github.com/Kisslo/reacher/issues/15) | Scoring from salon facts | 2 | In progress |
-| T2-03 | [#16](https://github.com/Kisslo/reacher/issues/16) | Excel export per the contract | 3 | Todo (after J-02) |
-| T2-02 | [#17](https://github.com/Kisslo/reacher/issues/17) | Rank, split per salesperson, freeze the snapshot | 3 | Waits on T1-05 |
+| J-01 | [#7](https://github.com/Kisslo/reacher/issues/7) | Sign off handoff formats | 2 | Done |
+| J-02 | [#8](https://github.com/Kisslo/reacher/issues/8) | Remove Orgnr column from the Excel contract | 2 | Done |
+| T2-01 | [#15](https://github.com/Kisslo/reacher/issues/15) | Scoring from salon facts | 2 | Done |
+| T2-03 | [#16](https://github.com/Kisslo/reacher/issues/16) | Excel export per the contract | 3 | Done |
+| T2-02 | [#17](https://github.com/Kisslo/reacher/issues/17) | Rank, split per salesperson, freeze the snapshot | 3 | Done |
 | T2-04 | [#18](https://github.com/Kisslo/reacher/issues/18) | Import outcomes from returned xlsx | 4 | Todo |
-| T2-05 | [#19](https://github.com/Kisslo/reacher/issues/19) | Simulated outcomes for demos | 4 | Waits on T1-03 |
+| T2-05 | [#19](https://github.com/Kisslo/reacher/issues/19) | Simulated outcomes for demos | 4 | Todo |
 | T2-06 | [#20](https://github.com/Kisslo/reacher/issues/20) | Report: top 20 vs the rest | 4 | Todo |
 | J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Todo |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
@@ -49,12 +49,12 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
 
 ## Team status
-*Session 1 (2026-09-25). Written by the project lead; Team 2 hasn't had a session yet.*
-- **Done:** F4 Excel contract and F5 scoring config (foundation).
+*Session 2 (2026-09-29). J-01, J-02, T2-01 and T2-03 are complete; T1-03 fixtures are also available.*
+- **Done:** Handoff formats signed off, Orgnr removed from the Excel contract, scoring from salon facts, and contract-compliant Excel export.
 - **In progress:** nothing.
-- **Next up:** J-01 on Monday → J-02 → T2-01 in parallel with T2-03.
+- **Next up:** T2-04 (outcome import). T2-05 is unblocked by T1-03.
 
 ## Team 2 open questions
 - How is "reached" defined in the report: are "Ej nådd" rows excluded from the denominator? (T2-06)
 - ~~Where does the 24-month threshold for `registered_recently` live?~~ Resolved (T2-01): in `scoring.yaml` under `thresholds`, because it's tuning. `registered_recently_months: 24` counts calendar months, inclusive, from the day the list is built. `small_employer_classes: ["2"]` holds SCB size-class codes as quoted text (`"2"` = 1–4 employees; `"0"` = data missing, which never counts). Weights version bumped to `v2`.
-- How are rows split between the two salespeople: alternating by rank, or by area? (T2-02)
+- Rows are split fairly and deterministically by alternating global rank (T2-02 implementation default).

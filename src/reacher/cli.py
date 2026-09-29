@@ -1,4 +1,6 @@
 import logging
+import sqlite3
+from datetime import date
 from pathlib import Path
 
 import typer
@@ -75,7 +77,60 @@ def ingest(
 @app.command("build-lists")
 def build_lists(week: str, sellers: str, db: Path = DEFAULT_DB) -> None:
     """Poängsätt, filtrera, rangordna och skriv en xlsx per säljare."""
-    raise NotImplementedError("B4 + C1")
+    from reacher.config import ScoringConfig
+    from reacher.db import connect, migrate, now
+    from reacher.excel.export import CallListRow, export_call_list
+    from reacher.lists import build_call_lists as create_call_lists
+
+    seller_names = tuple(seller.strip() for seller in sellers.split(",") if seller.strip())
+    config = ScoringConfig.load()
+    output_dir = Path("output")
+    conn = connect(db)
+
+    try:
+        migrate(conn)
+        built_lists = create_call_lists(conn, week, seller_names, config, date.today())
+
+        for built_list in built_lists:
+            output_path = output_dir / f"{week}_{built_list.seller}.xlsx"
+            export_call_list(
+                output_path,
+                [
+                    CallListRow(
+                        row_id=row.row_id,
+                        rank=row.rank,
+                        score=row.score,
+                        salon=row.salon,
+                        area=row.area,
+                        phone=row.phone,
+                        source=row.source,
+                        reasons="; ".join(row.reasons),
+                    )
+                    for row in built_list.rows
+                ],
+                {
+                    "call_list_id": str(built_list.call_list_id),
+                    "week": built_list.week,
+                    "seller": built_list.seller,
+                    "scoring_version": config.version,
+                    "generated_at": now(),
+                },
+            )
+            conn.execute(
+                "UPDATE call_list SET file_path = ? WHERE id = ?",
+                (str(output_path), built_list.call_list_id),
+            )
+            conn.commit()
+            typer.echo(
+                f"{built_list.seller}: {len(built_list.rows)} rows -> {output_path} "
+                f"({built_list.skipped_without_phone} without phone skipped)"
+            )
+    except sqlite3.IntegrityError as error:
+        raise typer.BadParameter(
+            f"Could not create lists for week {week}; a seller/week may already exist: {error}"
+        ) from error
+    finally:
+        conn.close()
 
 
 @app.command("import-outcomes")
