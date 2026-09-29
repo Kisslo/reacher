@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from reacher.normalize import normalize_orgnr as orgnr_key
 from reacher.sources.base import CSV_COLUMNS, SIGNAL_CSV_COLUMNS
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -19,22 +20,6 @@ def read(name: str) -> list[dict[str, str]]:
 def header(name: str) -> tuple[str, ...]:
     with open(FIXTURES / name, encoding="utf-8", newline="") as f:
         return tuple(next(csv.reader(f)))
-
-
-def luhn_ok(ten: str) -> bool:
-    total = 0
-    for i, ch in enumerate(ten[:9]):
-        d = int(ch) * (2 if i % 2 == 0 else 1)
-        total += d - 9 if d > 9 else d
-    return (10 - total % 10) % 10 == int(ten[9])
-
-
-def orgnr_key(raw: str) -> str | None:
-    """Tillfällig kopia av T1-04:s regel. Byt mot ingest-funktionen när den finns."""
-    digits = "".join(c for c in raw if c.isdigit())
-    if len(digits) == 12 and digits[:2] in ("16", "19", "20"):
-        digits = digits[2:]
-    return digits if len(digits) == 10 and luhn_ok(digits) else None
 
 
 @pytest.fixture(scope="module")
