@@ -41,7 +41,7 @@ Turn raw register data into clean, deduplicated `salon` + `contact` rows, and ow
 | J-01 | [#7](https://github.com/Kisslo/reacher/issues/7) | Sign off handoff formats | 2 | Todo, Monday |
 | T1-01 | [#9](https://github.com/Kisslo/reacher/issues/9) | Land the source contract with compliance fields | 2 | In progress (branch `T1-01-compliance-fields`) |
 | T1-02 | [#10](https://github.com/Kisslo/reacher/issues/10) | Migration 002: compliance fields on salon | 2 | Todo |
-| T1-08 | [#11](https://github.com/Kisslo/reacher/issues/11) | Document the SCB old-API variables | 2 | Todo, can start now |
+| T1-08 | [#11](https://github.com/Kisslo/reacher/issues/11) | Document the SCB old-API variables | 2 | Done ([docs/scb-fields.md](../../docs/scb-fields.md)) |
 | T1-03 | [#12](https://github.com/Kisslo/reacher/issues/12) | Realistic fixture data + ground truth | 2 | Todo, **Team 2 waits on this** |
 | T1-04 | [#13](https://github.com/Kisslo/reacher/issues/13) | CSV ingest and load-seed | 3 | Todo |
 | T1-05 | [#14](https://github.com/Kisslo/reacher/issues/14) | `callable_salon` view | 3 | Todo, **Team 2 waits on this** |
@@ -61,5 +61,5 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 
 ## Team 1 open questions
 - When do the SCB credentials arrive? If not by the end of week 4, escalate.
-- Still to verify against a real SCB response (T1-08): codes as JSON strings or numbers, and the exact 5-digit SNI codes.
+- Still to verify against a real SCB response (T1-06): see the checklist in docs/scb-fields.md. SNI codes confirmed: 96210, 96220.
 - The three rules T1-05 (#14) needs (Reklam codes, Arbetsgivarstatus `2`, unknown legal form): see Open questions in the shared file.

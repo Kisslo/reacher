@@ -26,6 +26,7 @@ av testerna för `callable_salon` (T1-05) och av Team 2 tills riktig data finns.
 - `sni` som `96.210` / `96.220` (SNI 2025, femsiffrigt). Ingen regel läser
   fältet än, så ett annat format betyder bara att filen genereras om.
 - `city` = BesöksPostOrt, `municipality` = fyrsiffrig kommunkod (D19).
+Se `docs/scb-fields.md`. SNI-koderna är bekräftade (`96210`, `96220`). Formatet och resten verifieras mot ett riktigt svar i T1-06 (#22).
 
 ## Kantfall
 
