@@ -142,6 +142,10 @@ You don't remember previous conversations. At the end of each working session, w
 | D17 | 2026-09-25 | Supersedes D2. The shared `claude.md` and both team files are **committed**, so every team member gets the same context through git and changes are reviewed in PRs. Only the per-person root `CLAUDE.md` loader is ignored (`/CLAUDE.md` in `.gitignore`). |
 | D18 | 2026-09-28 | **Approved by both teams.** Supersedes D10's field names and types. Compliance fields are raw SCB codes stored as TEXT: `legal_form`, `ftax_status`, `vat_status`, `employer_status`, `ad_status` (company) and `workplace_ad_status` (workplace). Reason: SCB's Variabelbeskrivning shows they are multi-valued codes, and the Reklam code also carries the phone block and NIX status, which a boolean would lose (failing open). The source and ingest never interpret them; `callable_salon` lists the allowed codes explicitly, so unknown codes fail closed. No CHECK constraints on the codes. |
 | D19 | 2026-09-28 | `area` is removed from `RawSalon` and `salon` (migration 003). SCB has no district variable; "Område" in the Excel file shows `salon.city` (BesöksPostOrt). The address comes from the Besöks* fields, never Postadress or Säteskommun (for a sole proprietorship those are the owner's home). |
+| D20 | 2026-09-29 | **Approved by both teams.** The only callable Reklam code is `11`, checked on both `ad_status` and `workplace_ad_status`; if either one blocks, the salon is excluded. `12`/`22` = telemarketing block, `21`–`23` = opted out, `13` (NIX-Telefon, accepts ads) is excluded until someone has checked NIX rule 6.3. NULL and unknown codes are excluded (fail closed). Implemented in `callable_salon` (T1-05). |
+| D21 | 2026-09-29 | **Approved by both teams.** Arbetsgivarstatus `2` (private employer) does **not** count as a registered employer for NIX 6.3: it's a person employing household staff, not a business. Only `1` (normal) and `3` (via representative) count. |
+| D22 | 2026-09-29 | **Approved by both teams.** The NIX 6.3 exemption applies only to explicitly listed legal forms that are legal persons: `31` (HB/KB) and `49` (AB). `10`, `99`, NULL and any unknown code are treated as possible sole proprietorships and need F-skatt (`1`), VAT (`1`/`3`) or employer registration (`1`/`3`) to be callable. Reason: listing the forms that *may* be a sole proprietorship (`10`, `99`, NULL) would let a new or garbled code through (fail open). New legal forms are added to the list deliberately. |
+
 
 
 ---
@@ -241,10 +245,7 @@ The list works when salons in the **top 20** respond "Interested" or "Registered
 - **When do SCB credentials arrive?** If they haven't arrived by the end of week 4, escalate. The first real list depends on them.
 - ~~SCB field names and codes.~~ Largely answered by SCB's Variabelbeskrivning (D18). T1-08 (#11) documents the mapping. Still to verify against a real API response: whether codes arrive as JSON strings or numbers, and the exact 5-digit SNI 2025 codes for 96.21/96.22.
 - ~~F3 branch.~~ Merged (PR #6), so D14 is resolved.
-- **Needed before T1-05 (#14), pending both teams.** Proposed defaults, all fail closed:
-  1. **Callable Reklam codes:** only `11`. `21`–`23` = opted out; `12`/`22` = telemarketing block. `13` (NIX-Telefon, accepts ads) stays excluded until someone has checked NIX rule 6.3. The check applies to both `ad_status` and `workplace_ad_status`, and either one blocking excludes the salon.
-  2. **Arbetsgivarstatus `2` (private employer):** does **not** count as a registered employer for NIX 6.3. It's a person employing household staff, not a business. Only `1` and `3` count.
-  3. **Unknown `legal_form` (NULL or `99`):** treated as a possible sole proprietorship, so the F-skatt/VAT/employer check applies.
+- ~~**Needed before T1-05 (#14):** callable Reklam codes, Arbetsgivarstatus `2`, unknown legal form.~~ Resolved as D20, D21 and D22.
 - **For Team 2 (from the SCB docs):** employee size class code `0` = "data missing", `1` = 0 employees, `2` = 1–4 (don't use the AnstSME scale). "Registreringsdatum" is the date of entry in SCB's register, and "Startdatum" (became active) may fit `registered_recently` better.
 - **Salon name:** SCB's "Företagsnamn" is the owner's personal name for a sole proprietorship. Proposal: use "Benämning" (the workplace's everyday name), then "Firma", then "Företagsnamn".
 - **orgnr normalisation (T1-04):** SCB's PeOrgNr is 12 digits. Legal persons have the prefix `16`, sole proprietorships `19`/`20` (personnummer). Normalisation must handle both.
