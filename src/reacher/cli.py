@@ -168,6 +168,38 @@ def import_outcomes(path: Path, db: Path = DEFAULT_DB) -> None:
         )
 
 
+@app.command("simulate-outcomes")
+def simulate_outcomes_command(
+    input_path: Path,
+    output_path: Path,
+    seed: int = 42,
+    db: Path = DEFAULT_DB,
+) -> None:
+    """Fill a fixture call-list workbook with reproducible demo outcomes."""
+    from reacher.db import connect, migrate
+    from reacher.simulation import SimulationError, simulate_outcomes
+
+    conn = connect(db)
+    try:
+        migrate(conn)
+        try:
+            counts = simulate_outcomes(
+                conn,
+                input_path,
+                output_path,
+                FIXTURES_DIR / "ground_truth.csv",
+                seed,
+            )
+        except SimulationError as error:
+            raise typer.BadParameter(str(error), param_hint="input_path") from error
+    finally:
+        conn.close()
+
+    typer.echo(f"Simulated outcomes (seed {seed}) -> {output_path}")
+    for outcome, count in counts.items():
+        typer.echo(f"  {outcome}: {count}")
+
+
 @app.command()
 def report(week: str, db: Path = DEFAULT_DB) -> None:
     """Topp-20 mot resten."""
