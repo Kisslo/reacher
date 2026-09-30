@@ -19,9 +19,8 @@ def test_help_lists_every_command():
         assert cmd in result.stdout
 
 
-def test_unimplemented_commands_fail_loudly():
+def test_unimplemented_commands_fail_loudly(tmp_path):
     """En tom kommandostub ska krascha, inte tyst göra ingenting."""
-    # report tar bara ett argument, så anropet når stubben. Utan argument hade
-    # Typer avbrutit med ett användningsfel (exit 2) och testet passerat ändå.
-    result = runner.invoke(app, ["report", "2026w40"])
+    # SCB-källan är stubbad tills T1-06 (#22). Byt till nästa stubb när den finns.
+    result = runner.invoke(app, ["ingest", "--source", "scb", "--db", str(tmp_path / "t.db")])
     assert isinstance(result.exception, NotImplementedError)
