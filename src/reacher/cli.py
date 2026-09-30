@@ -2,10 +2,14 @@ import logging
 import sqlite3
 from datetime import date
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
 from reacher.sources.base import SalonSource
+
+if TYPE_CHECKING:
+    from reacher.report import GroupStats
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
@@ -200,10 +204,53 @@ def simulate_outcomes_command(
         typer.echo(f"  {outcome}: {count}")
 
 
+def _format_group(label: str, stats: "GroupStats") -> str:
+    if stats.hit_rate is None:
+        rate = "no reached calls"
+    else:
+        rate = f"{stats.hits}/{stats.reached} = {stats.hit_rate:.0%}"
+    details = f"sent {stats.sent}, Ej nådd {stats.not_reached}, not called {stats.not_called}"
+    if stats.unknown:
+        details += f", unknown outcome {stats.unknown}"
+    return f"  {label:<8}{rate:<20}({details})"
+
+
 @app.command()
 def report(week: str, db: Path = DEFAULT_DB) -> None:
-    """Topp-20 mot resten."""
-    raise NotImplementedError("E1")
+    """Topp-20 mot resten (T2-06)."""
+    from reacher.db import connect, migrate
+    from reacher.report import TOP_N, ReportError, build_report
+
+    conn = connect(db)
+    try:
+        migrate(conn)
+        try:
+            week_report = build_report(conn, week)
+        except ReportError as error:
+            raise typer.BadParameter(str(error), param_hint="week") from error
+    finally:
+        conn.close()
+
+    top_label = f"Top {TOP_N}"
+    typer.echo(f"Week {week}: top {TOP_N} = rank 1-{TOP_N} across all lists")
+    typer.echo(
+        "Hit rate = (Intresserad + Registrerad) / reached. "
+        "Reached excludes Ej nådd and rows without an outcome."
+    )
+    for list_report in week_report.lists:
+        typer.echo(f"{list_report.seller}:")
+        typer.echo(_format_group(top_label, list_report.top))
+        typer.echo(_format_group("Rest", list_report.rest))
+    typer.echo("All lists:")
+    typer.echo(_format_group(top_label, week_report.top))
+    typer.echo(_format_group("Rest", week_report.rest))
+
+    tie = week_report.boundary_tie
+    if tie is not None:
+        typer.echo(
+            f"Note: {tie.in_top} rows in the top {TOP_N} and {tie.in_rest} in the rest share "
+            f"score {tie.score:g}. Which side they are on is decided by tie-break, not score."
+        )
 
 
 if __name__ == "__main__":

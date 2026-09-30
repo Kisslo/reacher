@@ -41,7 +41,7 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 | T2-02 | [#17](https://github.com/Kisslo/reacher/issues/17) | Rank, split per salesperson, freeze the snapshot | 3 | Done |
 | T2-04 | [#18](https://github.com/Kisslo/reacher/issues/18) | Import outcomes from returned xlsx | 4 | Done |
 | T2-05 | [#19](https://github.com/Kisslo/reacher/issues/19) | Simulated outcomes for demos | 4 | Done |
-| T2-06 | [#20](https://github.com/Kisslo/reacher/issues/20) | Report: top 20 vs the rest | 4 | In progress |
+| T2-06 | [#20](https://github.com/Kisslo/reacher/issues/20) | Report: top 20 vs the rest | 4 | Done |
 | J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Todo |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
 | T2-07 | [#25](https://github.com/Kisslo/reacher/issues/25) | First tuning pass on signal weights | 7–8 | Todo |
@@ -49,12 +49,12 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
 
 ## Team status
-*Session 4 (2026-09-30). T2-02, T2-04 and T2-05 are complete; T1-03 fixtures are available.*
-- **Done:** Handoff formats signed off, Orgnr removed from the Excel contract, scoring from salon facts, deterministic ranking and salesperson splitting with frozen snapshots, contract-compliant Excel export, outcome import with permanent suppressions, and fixture-only seeded outcome simulation for demos.
-- **In progress:** T2-06 (weekly report: top 20 vs. the rest).
-- **Next up:** Implement the weekly conversion report using the imported outcomes and show sample sizes beside hit rates.
+*Session 5 (2026-09-30). T2-02, T2-04, T2-05 and T2-06 are complete; T1-03 fixtures are available.*
+- **Done:** Handoff formats signed off, Orgnr removed from the Excel contract, scoring from salon facts, deterministic ranking and salesperson splitting with frozen snapshots, contract-compliant Excel export, outcome import with permanent suppressions, fixture-only seeded outcome simulation for demos, and the weekly top-20 report (D23) with sample sizes and a tie warning at rank 20.
+- **In progress:** nothing.
+- **Next up:** J-03 (end-to-end demo script). Run it from the repo root: `build-lists` reads `scoring.yaml` from the current directory.
 
 ## Team 2 open questions
-- How is "reached" defined in the report: are "Ej nådd" rows excluded from the denominator? (T2-06)
+- ~~How is "reached" defined in the report: are "Ej nådd" rows excluded from the denominator? (T2-06)~~ Resolved as D23: Ej nådd and empty Utfall are excluded, and "top 20" is global rank 1–20.
 - ~~Where does the 24-month threshold for `registered_recently` live?~~ Resolved (T2-01): in `scoring.yaml` under `thresholds`, because it's tuning. `registered_recently_months: 24` counts calendar months, inclusive, from the day the list is built. `small_employer_classes: ["2"]` holds SCB size-class codes as quoted text (`"2"` = 1–4 employees; `"0"` = data missing, which never counts). Weights version bumped to `v2`.
 - Rows are split fairly and deterministically by alternating global rank (T2-02 implementation default).
