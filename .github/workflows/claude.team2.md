@@ -39,9 +39,9 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 | T2-01 | [#15](https://github.com/Kisslo/reacher/issues/15) | Scoring from salon facts | 2 | Done |
 | T2-03 | [#16](https://github.com/Kisslo/reacher/issues/16) | Excel export per the contract | 3 | Done |
 | T2-02 | [#17](https://github.com/Kisslo/reacher/issues/17) | Rank, split per salesperson, freeze the snapshot | 3 | Done |
-| T2-04 | [#18](https://github.com/Kisslo/reacher/issues/18) | Import outcomes from returned xlsx | 4 | Todo |
-| T2-05 | [#19](https://github.com/Kisslo/reacher/issues/19) | Simulated outcomes for demos | 4 | Todo |
-| T2-06 | [#20](https://github.com/Kisslo/reacher/issues/20) | Report: top 20 vs the rest | 4 | Todo |
+| T2-04 | [#18](https://github.com/Kisslo/reacher/issues/18) | Import outcomes from returned xlsx | 4 | Done |
+| T2-05 | [#19](https://github.com/Kisslo/reacher/issues/19) | Simulated outcomes for demos | 4 | Done |
+| T2-06 | [#20](https://github.com/Kisslo/reacher/issues/20) | Report: top 20 vs the rest | 4 | In progress |
 | J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Todo |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
 | T2-07 | [#25](https://github.com/Kisslo/reacher/issues/25) | First tuning pass on signal weights | 7–8 | Todo |
@@ -49,10 +49,10 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
 
 ## Team status
-*Session 2 (2026-09-29). J-01, J-02, T2-01 and T2-03 are complete; T1-03 fixtures are also available.*
-- **Done:** Handoff formats signed off, Orgnr removed from the Excel contract, scoring from salon facts, and contract-compliant Excel export.
-- **In progress:** nothing.
-- **Next up:** T2-04 (outcome import). T2-05 is unblocked by T1-03.
+*Session 4 (2026-09-30). T2-02, T2-04 and T2-05 are complete; T1-03 fixtures are available.*
+- **Done:** Handoff formats signed off, Orgnr removed from the Excel contract, scoring from salon facts, deterministic ranking and salesperson splitting with frozen snapshots, contract-compliant Excel export, outcome import with permanent suppressions, and fixture-only seeded outcome simulation for demos.
+- **In progress:** T2-06 (weekly report: top 20 vs. the rest).
+- **Next up:** Implement the weekly conversion report using the imported outcomes and show sample sizes beside hit rates.
 
 ## Team 2 open questions
 - How is "reached" defined in the report: are "Ej nådd" rows excluded from the denominator? (T2-06)
