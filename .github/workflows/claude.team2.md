@@ -42,7 +42,7 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 | T2-04 | [#18](https://github.com/Kisslo/reacher/issues/18) | Import outcomes from returned xlsx | 4 | Done |
 | T2-05 | [#19](https://github.com/Kisslo/reacher/issues/19) | Simulated outcomes for demos | 4 | Done |
 | T2-06 | [#20](https://github.com/Kisslo/reacher/issues/20) | Report: top 20 vs the rest | 4 | Done |
-| J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Todo |
+| J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | In review (branch `J-03-end-to-end-demo-script`) |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
 | T2-07 | [#25](https://github.com/Kisslo/reacher/issues/25) | First tuning pass on signal weights | 7–8 | Todo |
 

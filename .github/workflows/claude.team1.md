@@ -45,7 +45,7 @@ Turn raw register data into clean, deduplicated `salon` + `contact` rows, and ow
 | T1-03 | [#12](https://github.com/Kisslo/reacher/issues/12) | Realistic fixture data + ground truth | 2 | Todo, **Team 2 waits on this** |
 | T1-04 | [#13](https://github.com/Kisslo/reacher/issues/13) | CSV ingest and load-seed | 3 | Todo |
 | T1-05 | [#14](https://github.com/Kisslo/reacher/issues/14) | `callable_salon` view | 3 | In review |
-| J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Todo |
+| J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | In review (branch `J-03-end-to-end-demo-script`) |
 | T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (old API) | 5 | Blocked: credentials |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
 | T1-07 | [#23](https://github.com/Kisslo/reacher/issues/23) | Handle salons that disappear from SCB | 7–8 | Todo |
