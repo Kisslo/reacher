@@ -30,9 +30,9 @@ The two teams connect through one agreed data format: the filtered salon list th
 **Your first task is to help both teams agree on these two formats.** Until real data exists, Team 2 works against realistic mock data in the agreed format, so neither team blocks the other. Any change to the formats must be agreed by both teams and logged under decisions.
 
 ### Format 1: Salon list (Team 1 → Team 2).
-The handoff is the SQLite database, not a separate file. Team 1 writes `salon` and `contact` (and later `signal`), and Team 2 reads them. Team 2's mock data is fixture CSVs loaded into the same tables with `reacher load-seed`, so mock and real data can't drift apart.
+The handoff is the SQLite database, not a separate file. Team 1 writes `salon`, `contact` and `financial_fact` (and later `signal`), and Team 2 reads them. Team 2's mock data is fixture CSVs loaded into the same tables with `reacher load-seed`, so mock and real data can't drift apart.
 
-At the source boundary, the shape is `RawSalon` / `RawSignal` in `src/reacher/sources/base.py`. It lives on branch `F3-source-contract`, which is pushed but not yet merged.
+At the source boundary, the shape is `RawSalon` / `RawSignal` in `src/reacher/sources/base.py` (merged in PR #6). Financial facts from Bolagsverket get their own shape, `RawFinancial` (T1-12), because they are per company and fiscal year, not per workplace.
 
 | Draft field | Where it lives |
 |---|---|
@@ -42,6 +42,7 @@ At the source boundary, the shape is `RawSalon` / `RawSignal` in `src/reacher/so
 | `sni_code`, `registration_date`, `employee_size_class` | `salon.sni`, `salon.registered_at`, `salon.employee_class` |
 | `signals[]` (type, evidence, source_url) | `signal.key`, `signal.evidence`, `signal.source_url` |
 | *(not in draft)* | `salon.cfar` (workplace number: one company can have several salons), `signal.observed_at`, `contact.confidence` |
+| *(new, D25)* revenue and net result per fiscal year | `financial_fact` (`orgnr`, `period_end`, `key`, `value`, `source_document`, `fetched_at`): one row per company, fiscal year and key, up to the 3 latest years |
 
 Rules:
 - Team 1 delivers raw facts only. Team 2 decides the thresholds and points, so tuning the scoring never requires changes to Team 1's code.
@@ -60,6 +61,9 @@ Rules:
   | `ad_status` | Reklam (company) | 1st digit: `1` accepts ads, `2` opted out · 2nd digit: `1` no phone block, `2` telemarketing block, `3` NIX-Telefon |
   | `workplace_ad_status` | Reklam (workplace) | Same codes as `ad_status` |
 - Phone and website come from SCB (D9). Email is **not stored** until there is a use for it (data minimisation). *Assumption.*
+- **Financial facts (D25, D26):** Team 1 delivers Nettoomsättning (`revenue`) and Årets resultat (`net_result`) exactly as reported (whole SEK, sign kept). Team 2 derives `loss_making` / `low_revenue` and owns the thresholds. No annual report (e.g. a sole proprietorship) means no rows, never 0.
+- **New SCB API (D24, D28, D31):** the old two-digit Reklam code is split into `reklamSparrTyp` (1 accepts ads, 2 opted out) and `telefonSparrTyp` (1 no block, 2 telemarketing block, 3 NIX-Telefon), delivered as JSON numbers. `ftgStat` (0 never active, 1 active, 9 no longer active) is delivered as a string. The source converts all codes with `str()` and nothing else. Until T1-10 is merged, D18 and D20 apply.
+- **Address and municipality come from the workplace (D19).** In the new API, `postAdress` and `kommunSate` belong to the legal unit; for a sole proprietorship that is the owner's home. They are never used for Adress/Ort in Excel or for the municipality filter.
 
 ### Format 2: Block list (Team 2 → Team 1).
 The `suppression` table holds one row per (orgnr, reason):
@@ -108,17 +112,31 @@ When working with a team, that team's file takes precedence for team-internal ma
 - **Estimate:** in days
 - **Suggested owner:** leave blank unless I've told you who works on what
 
+## Scaling principles (D29)
+Fields, values and signals will change. Keep each change to one place:
+
+| Change | Where | Code change? |
+|---|---|---|
+| Signal weight, threshold, on/off, shadow mode | `scoring.yaml` (bump `version`) | No |
+| SNI codes, municipalities | `sources.yaml` | No |
+| New field from the annual report | `bolagsverket.tag_map` in `sources.yaml`; `financial_fact` is key/value, so no migration | No |
+| New signal | One derive function in the registry + one block in `scoring.yaml`; config fails to load if they don't match | Yes, Team 2 |
+| New SCB field | `RawSalon` + migration + `docs/scb-fields.md` (Format 1 change, tell Team 2) | Yes, Team 1 |
+| New Excel column | `contract.py` + export (joint change) | Yes, both teams |
+
+Config is validated with pydantic `extra="forbid"`, so a typo fails loudly instead of silently scoring 0. Secrets never go in config.
+
 ## Session continuity
 You don't remember previous conversations. At the end of each working session, when I ask, produce a short **Status Update** for the team you're working with (done, in progress, next up). It goes under "Team status" in that team's file. Shared decisions, handoff-format changes and open questions go in this file instead. On Fridays, the two teams' updates are merged into "Current Status" below.
 
 ## Current Status (shared)
-*Session 1 (2026-09-25): orientation, format proposal, plan and tickets. Per-team status is in the team files.*
+*Session 2026-10-06: SCB new API and Bolagsverket planned. Per-team status is in the team files.*
 
-**Foundation (done, on `main`):** F1 scaffold, CLI skeleton and CI · F2 SQLite schema, migrations and `init-db` · F4 Excel contract · F5 scoring config. All 20 tests pass.
+**Done (on `main`):** foundation F1–F5, T1-01–T1-05, T1-08, T2-01–T2-06, J-01–J-03. The full loop runs on fixtures (README demo).
 
-**Cross-team next up (week 2):** J-01 (#7) format sign-off on Monday, then J-02 (#8).
+**Cross-team next up:** J-05 (#44) context update → J-06 (#45) Excel columns and T1-10 (#47) compliance fields (D28, D30, D31).
 
-**Tickets:** GitHub issues #7–#25 on `Kisslo/reacher`, with labels `team-1` / `team-2` / `joint` / `cross-team` / `compliance` / `blocked` and milestones "Week 2" to "Week 10" (due on Fridays). The issues are the source of truth.
+**Tickets:** GitHub issues on `Kisslo/reacher` with labels `team-1` / `team-2` / `joint` / `cross-team` / `compliance` / `blocked` and milestones "Week 2" to "Week 10" (due on Fridays). The issues are the source of truth.
 
 ## Decisions log
 | # | Date | Decision |
@@ -127,7 +145,7 @@ You don't remember previous conversations. At the end of each working session, w
 | D2 | 2026-09-25 | ~~This `claude.md` is not committed to the repo.~~ Superseded by D17. |
 | D3 | 2026-09-25 | New ticket numbering: `T1-NN` / `T2-NN` / `J-NN`. Workstreams A–E are retired. |
 | D4 | 2026-09-25 | **MVP = SCB API data → score → Excel.** Parked for later: `advertises_chair`, `unmet_search_demand`, the LLM website check and website scraping. |
-| D5 | 2026-09-25 | Build against **SCB's old API** now and refactor to the new API-key API later. |
+| D5 | 2026-09-25 | ~~Build against SCB's old API now and refactor to the new API-key API later.~~ Superseded by D24. |
 | D6 | 2026-09-25 | Team 1 delivers raw facts. `registered_recently` and `small_employer` are derived by Team 2. |
 | D7 | 2026-09-25 | Block list = the `suppression` table: per orgnr, filtered at export time through a shared `callable_salon` view (pending Team 2 sign-off). |
 | D8 | 2026-09-25 | The existing-customer exclusion is **not applied** until we have Topseat data access. Known gap: salespeople may call existing customers (partly covered by D13). |
@@ -146,8 +164,14 @@ You don't remember previous conversations. At the end of each working session, w
 | D21 | 2026-09-29 | **Approved by both teams.** Arbetsgivarstatus `2` (private employer) does **not** count as a registered employer for NIX 6.3: it's a person employing household staff, not a business. Only `1` (normal) and `3` (via representative) count. |
 | D22 | 2026-09-29 | **Approved by both teams.** The NIX 6.3 exemption applies only to explicitly listed legal forms that are legal persons: `31` (HB/KB) and `49` (AB). `10`, `99`, NULL and any unknown code are treated as possible sole proprietorships and need F-skatt (`1`), VAT (`1`/`3`) or employer registration (`1`/`3`) to be callable. Reason: listing the forms that *may* be a sole proprietorship (`10`, `99`, NULL) would let a new or garbled code through (fail open). New legal forms are added to the list deliberately. |
 | D23 | 2026-09-30 | **Approved by Team 2** (the report reads only Team 2's tables, so Team 1 sign-off isn't needed). Report hit rate = (Intresserad + Registrerad) / reached. **Reached** = Intresserad, Registrerad, Nej or Spärra. "Ej nådd" and rows without an Utfall are left out of the denominator but shown as counts. **Top 20** = global rank 1–20 across all of the week's lists (`call_list_row.rank`), so "per list" means each salesperson's share of that top 20 versus their share of the rest. Reason: the alternating split gives each salesperson about half of the top 20, and a per-list top 20 would leave almost nothing in "the rest" (2 rows per list on the fixtures). |
-
-
+| D24 | 2026-10-06 | Supersedes D5. We build directly against **SCB's new API-key API**. API keys (SCB, later Bolagsverket) are kept **locally in `.env`** by each developer, never in GitHub secrets, code, config, tests or logs. CI never calls an external API. |
+| D25 | 2026-10-06 | **Bolagsverket** adds Nettoomsättning (`revenue`) and Årets resultat (`net_result`) for up to the 3 latest fiscal years, stored raw by Team 1 in `financial_fact` (per orgnr). SCB is filtered first: reports are fetched only for companies that pass `callable_salon` and have a legal form that files annual reports. No report = no rows, never 0. |
+| D26 | 2026-10-06 | Financial signals (`loss_making`, `low_revenue`) run in **shadow mode**: derived and stored per list row, weight 0, not shown to salespeople. They get points only after T2-07 shows they help. Signals can be switched off (`enabled: false`) or shadowed (`weight: 0`) in `scoring.yaml`. |
+| D27 | 2026-10-06 | **Company request:** Excel gets Adress, Ort, Omsättning and Resultat, with **all available fiscal years up to 3**. *Layout pending sign-off in J-06:* Ort replaces Område (same value, D19); Adress = workplace visiting address only; Omsättning and Resultat are one cell each, one line per fiscal year, newest first, labelled by the year the fiscal year ends ("2023/24" when it isn't a calendar year); empty when no report. Headers contain no years, so the import's header check keeps working. Still no orgnr (D12). |
+| D28 | 2026-10-06 | **Decided.** `reklamSparrTyp` and `telefonSparrTyp` from the new API are stored raw as TEXT in their own columns. A salon is callable only if **both are `1`** (same meaning as D20's `11`), on company and, if the API has it, workplace level. NULL and unknown codes fail closed. Implemented in T1-10. |
+| D29 | 2026-10-06 | **Config over code.** `scoring.yaml` (signals, weights, thresholds) and `sources.yaml` (SNI, municipalities, annual-report legal forms, years, iXBRL tag map) hold what is expected to change. See "Scaling principles". |
+| D30 | 2026-10-06 | **Decided.** Estates (legal form `91`, oskiftat dödsbo) are never callable, even with F-skatt, VAT or employer registration. Written NULL-safe in `callable_salon`, as `(legal_form IS NULL OR legal_form NOT IN ('91'))`, so a missing legal form is still handled by D22. This is the view's only rule that blocks a specific code; every other rule lists the allowed codes. |
+| D31 | 2026-10-06 | **Decided.** Only active companies are callable: SCB `ftgStat` is stored raw as `salon.company_status` (TEXT) and `callable_salon` requires `'1'`. `0` (never active), `9` (no longer active), NULL and unknown are excluded (fail closed). Company-level variable. |
 
 ---
 
@@ -175,39 +199,44 @@ Empty chairs can't be observed directly, so ranking is based on signals. Each si
 | Freelancers searched in Topseat in the area with no results | Demand exists where the salon is | Topseat's own search data, *if it is logged (open question)* | 3 |
 | Salon registered within the last 24 months | Assumption: new salons have more chairs than customers | SCB (registration date) | 1 |
 | Salon has 1–4 employees | Assumption: small salons rent out chairs more often | SCB (size class) | 1 |
-| Salon is loss-making or has low revenue | *(not yet specified)* | *(not yet specified)* | *(not yet specified)* |
+| Salon is loss-making or has low revenue | Assumption: a struggling salon wants income from empty chairs | Bolagsverket annual reports (Nettoomsättning, Årets resultat), latest 3 fiscal years | **0, shadow mode (D26)** |
 
 - Points are **starting values** to be tuned.
 - The assumption-based signals are **hypotheses tested against actual call outcomes** and removed if they don't hold up.
+- A signal can be **off** (`enabled: false`: not derived at all) or in **shadow mode** (`weight: 0`: derived and stored per list row so T2-07 can evaluate it, but no points and not shown to the salesperson). Both are `scoring.yaml` changes only (T2-08).
 
 ### Exclusions (filtered out before the list is sent)
 1. Salons already on Topseat. *Not applied yet: no data source (D8).*
 2. Salons that have asked not to be contacted (the permanent block list).
 3. Sole proprietorships that lack F-skatt (Swedish business tax registration), VAT registration, AND employer registration (see Rules below). Unknown status counts as lacking (D11).
-4. Companies or workplaces with SCB "reklamspärr" or a phone block (`ad_status`, `workplace_ad_status`). The Reklam code also reveals NIX-Telefon registration (2nd digit `3`) (D11, D18).
+4. Companies or workplaces with SCB "reklamspärr" or a phone block. New API: both `reklamSparrTyp` and `telefonSparrTyp` must be `1` (D28). Old columns: D20. The phone block also reveals NIX-Telefon registration.
+5. Estates (legal form `91`, oskiftat dödsbo), regardless of F-skatt, VAT or employer status (D30).
+6. Companies that are not active according to SCB: `ftgStat` must be `1` (D31).
 
 ### Pipeline
 ```mermaid
 flowchart LR
-    A[SCB: salons by industry and area] --> B[Deduplicate]
-    B --> C[Find website and phone number]
-    C --> D[Collect signals]
-    D --> E[Score and filter]
+    A[SCB API: salons by SNI and workplace municipality] --> B[Ingest and deduplicate]
+    B --> C[callable_salon: exclusions]
+    C --> D[Bolagsverket: annual reports, callable companies only]
+    D --> E[Score and rank]
     E --> F[Excel per salesperson]
     F --> G[Salesperson calls and enters outcome]
     G --> H[Outcomes imported]
     H --> E
 ```
 
-Team 1 owns steps A–D plus the exclusion filtering. Team 2 owns scoring and everything from E onward.
+Team 1 owns steps A–D plus the exclusion filtering. Team 2 owns scoring and everything from E onward. SCB is filtered before Bolagsverket so we open as few annual reports as possible (D25).
 
 ### Data sources
-- **Base list:** SCB's business register (Statistics Sweden), or a similar database.
-- **Industry codes (SNI 2025):** 96.21 Hairdressers and barbers; 96.22 Beauty care and other beauty treatments.
-- **Free via SCB REST API:** industry, workplace address, number of employees. Max 2,000 rows per request. Access must be applied for; a new API with API-key authentication launches September 2026. **We use the old API for now and refactor later (D5). Credentials are pending.**
+- **Base list:** SCB's business register through the **new API-key API** (D24, supersedes D5). Field mapping: `docs/scb-fields.md` (T1-09, #46).
+- **Industry codes (SNI 2025):** 96210 Hairdressers and barbers; 96220 Beauty care. Configured in `sources.yaml`, not in code (D29).
+- **Area:** start with one municipality (D15), filtered on the workplace's municipality. Codes for Stockholms län: 0114–0192, e.g. 0180 Stockholm.
+- **Phone, website, compliance fields:** expected from SCB (D9). Which endpoint delivers each field is checked in T1-09.
+- **Financials:** Bolagsverket annual reports (xhtml/iXBRL), revenue and net result for up to 3 fiscal years, only for callable companies with a legal form that files annual reports (D25). More API context is coming.
+- **API keys:** kept locally in `.env` by each developer, never in GitHub secrets, code, config, tests or logs (D24). `.env.example` lists the variable names.
+- **Local reference only:** `API_context.md` and `Variabelbeskrivning_scb.pdf` are gitignored. API_context.md contains real people's data; anything shared goes into `docs/` anonymised.
 - **Fallback** if SCB access doesn't work out: Google searches and the Google Places API.
-- **Phone numbers, email and website** come with the free SCB API we are waiting for (D9). This replaces the earlier plan to scrape or use Google Places.
-- **Compliance fields** in SCB's old API: legal form, F-skatt, VAT, employer status and reklamspärr.
 
 ### AI component (optional / stretch goal, parked per D4)
 An LLM reads the text of a salon's website and answers one question: does the page say a chair is for rent? The answer **must include the exact sentence from the page as evidence**. Without a verbatim quote, the signal does not count (to prevent hallucinated positives).
@@ -220,10 +249,13 @@ One or two files per week. The sheet is **locked except for the Outcome and Comm
 | Rank | 1 = call first |
 | Score | Sum of signal points |
 | Salon | Name only. No orgnr, because a sole proprietorship's orgnr is a personnummer (D12) |
-| Area | District or town |
+| Address (Adress) | Workplace visiting address: street + postal code. Never the legal unit's postal address (D19, D27) |
+| Town (Ort) | `salon.city`; replaces Area/Område (D27, pending J-06) |
 | Phone | Number to call |
 | Source | Link to the page where the number was found |
-| Why we're calling | Signals in plain language, e.g. "advertises chair rental on own website" |
+| Revenue (Omsättning) | Bolagsverket, all available fiscal years up to 3, one line per year, newest first, e.g. "2024: 1 234 567 kr". Fiscal years that aren't calendar years shown as "2023/24". Empty when no report (D25, D27) |
+| Profit/loss (Resultat) | Same format, Årets resultat |
+| Why we're calling | Signals in plain language. Shadow signals are not shown (D26) |
 | Outcome | Dropdown: Not reached, Interested, Registered, No, Block |
 | Comment | Free text from the salesperson |
 
@@ -238,12 +270,12 @@ The list works when salons in the **top 20** respond "Interested" or "Registered
 
 ## Open questions
 - ~~Is Topseat's in-app search data logged?~~ We have no access to the Topseat DB or search logs, so `unmet_search_demand` is parked (D4).
-- ~~Timing and terms of SCB's new API.~~ Deferred: we use the old API for now (D5).
+- ~~Timing and terms of SCB's new API.~~ Resolved: we use the new API directly (D24).
 - What source, threshold, and points for the "loss-making / low revenue" signal?
 - ~~Cost of phone numbers / MVP phone source.~~ Phone numbers come with the free SCB API (D9).
 - ~~Old SCB API fields.~~ It has legal form, F-skatt, VAT, employer status and reklamspärr (D10).
 - ~~NIX unknown status / where it lives, GDPR orgnr, existing customers.~~ Resolved as D11, D12 and D13.
-- **When do SCB credentials arrive?** If they haven't arrived by the end of week 4, escalate. The first real list depends on them.
+- ~~When do SCB credentials arrive?~~ Resolved: we have API keys, kept locally (D24).
 - ~~SCB field names and codes.~~ Largely answered by SCB's Variabelbeskrivning (D18). T1-08 (#11) documents the mapping. Still to verify against a real API response: whether codes arrive as JSON strings or numbers, and the exact 5-digit SNI 2025 codes for 96.21/96.22.
 - ~~F3 branch.~~ Merged (PR #6), so D14 is resolved.
 - ~~**Needed before T1-05 (#14):** callable Reklam codes, Arbetsgivarstatus `2`, unknown legal form.~~ Resolved as D20, D21 and D22.
@@ -251,15 +283,21 @@ The list works when salons in the **top 20** respond "Interested" or "Registered
 - **Salon name:** SCB's "Företagsnamn" is the owner's personal name for a sole proprietorship. Proposal: use "Benämning" (the workplace's everyday name), then "Firma", then "Företagsnamn".
 - **orgnr normalisation (T1-04):** SCB's PeOrgNr is 12 digits. Legal persons have the prefix `16`, sole proprietorships `19`/`20` (personnummer). Normalisation must handle both.
 - ~~**Area ("Område"):** SCB gives municipality and postal code, not district. For the MVP, `area` = postal town. *Assumption.*~~
+- **New SCB API (T1-09):** which endpoint has workplaces (`cfar`, visiting address, workplace municipality, workplace-level blocks)? The Juridiska enheter sample only has `postAdress` and `kommunSate`. Are F-skatt, moms, arbetsgivare, registration/start date, phone and website delivered?
+- **`anstKl` scale (T1-09 → Team 2):** Storleksklass Anställda (`2` = 1–4) or the SME scale (`1` = 1–9)? If SME, `small_employer_classes` must change, or `small_employer` scores the wrong salons.
+- **SCB's own Omsättning:** the register has a revenue size class (from VAT returns) + Omsättning År, which also covers sole proprietorships. If the new API exposes it, should it feed `low_revenue` and act as the SCB-first filter before Bolagsverket?
+- ~~Estates (`jurform` 91).~~ Resolved as D30: excluded.
+- ~~Dormant companies / `ftgStat`.~~ Resolved as D31: callable only with `1`.
+- ~~Which years the Excel file shows.~~ Resolved as D27: all available years up to 3. Exact cell format signed off in J-06.
 
 ## Plan (weeks 2–10)
 | Week | Dates | Goal | Friday demo |
 |---|---|---|---|
 | 2 | Sep 28 – Oct 2 | Formats signed off; fixtures, ingest and scoring started | `load-seed` fills the DB from fixtures and a score per salon is shown |
-| 3 | Oct 5 – 9 | Thin slice on fixtures | `build-lists` writes a locked xlsx per salesperson; blocked and NIX-excluded salons are missing |
-| 4 | Oct 12 – 16 | Full loop on fixtures | build → simulated outcomes → import → "Spärra" gone next week → top-20 report |
-| 5 | Oct 19 – 23 | SCB adapter (if credentials arrived) | Real salons from one municipality in the DB |
-| 6 | Oct 26 – 30 | **First real list to salespeople** | Real list shown; first real outcomes imported |
-| 7–8 | Nov 2 – 13 | Weekly real cycle; hardening; first tuning | Top-20 vs rest on real outcomes |
-| 9 | Nov 16 – 20 | Stretch picks (e.g. the new SCB API, advertises_chair); docs | Trend over weeks |
+| 3 | Oct 5 – 9 | Full loop on fixtures (done early); plan SCB new API + Bolagsverket (J-05) | Full loop on fixtures (J-03) |
+| 4 | Oct 12 – 16 | SCB new API documented (T1-09), config + local keys (T1-11), new compliance fields (T1-10), signal registry (T2-08), Excel columns (J-06) | New Excel layout on fixtures; a shadow signal stored but not shown |
+| 5 | Oct 19 – 23 | SCB adapter (T1-06), `financial_fact` (T1-12), iXBRL parser (T1-13), financial shadow signals (T2-09) | Real salons from one municipality in the DB |
+| 6 | Oct 26 – 30 | **First real list to salespeople** (J-04); Bolagsverket adapter if its context has arrived (T1-14) | Real list with Adress/Ort; financials where available |
+| 7–8 | Nov 2 – 13 | Weekly real cycle; financials for all callable companies; first tuning incl. shadow signals | Top-20 vs rest; shadow signals with vs without |
+| 9 | Nov 16 – 20 | Stretch picks (e.g. advertises_chair, SCB's Omsättning size class); docs | Trend over weeks |
 | 10 | Nov 23 – 27 | Stabilise, final demo | Definition of done shown |
