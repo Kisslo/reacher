@@ -50,8 +50,11 @@ def add_salons(conn, count, *, employee_class=None):
         cursor = conn.execute(
             "INSERT INTO salon "
             "(orgnr, name, employee_class, legal_form, ftax_status, vat_status, "
-            "employer_status, ad_status, workplace_ad_status, first_seen_at, last_seen_at) "
-            "VALUES (?, ?, ?, '49', '1', '1', '1', '11', '11', '2026-09-28', '2026-09-28')",
+            "employer_status, company_status, workplace_status, ad_block_type, "
+            "phone_block_type, workplace_ad_block_type, workplace_phone_block_type, "
+            "first_seen_at, last_seen_at) "
+            "VALUES (?, ?, ?, '49', '1', '1', '1', '1', '1', '1', '1', '1', '1', "
+            "'2026-09-28', '2026-09-28')",
             (f"orgnr-{employee_class}-{number}", f"Salon {number}", employee_class),
         )
         conn.execute(

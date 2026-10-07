@@ -1,6 +1,6 @@
 # Team 1: Data collection and filtering
 
-Loaded together with the shared `claude.md`. That file holds the handoff formats, decisions (D1–D31) and compliance rules, and it always wins over this one. You are talking to a member of Team 1.
+Loaded together with the shared `claude.md`. That file holds the handoff formats, decisions and compliance rules, and it always wins over this one. You are talking to a member of Team 1.
 
 ## Our job in one sentence
 Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon`, `contact` and `financial_fact` rows, and own the `callable_salon` view that decides who may be called at all.
@@ -57,7 +57,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | J-05 | [#44](https://github.com/Kisslo/reacher/issues/44) | Update shared context for SCB new API and Bolagsverket | 3 | Done |
 | T1-09 | [#46](https://github.com/Kisslo/reacher/issues/46) | Document the SCB new API fields | 4 | Done |
 | T1-11 | [#48](https://github.com/Kisslo/reacher/issues/48) | Source config and local API keys | 4 | Todo |
-| T1-10 | [#47](https://github.com/Kisslo/reacher/issues/47) | New-API compliance fields, estates and active status | 4 | Todo |
+| T1-10 | [#47](https://github.com/Kisslo/reacher/issues/47) | New-API compliance fields, estates and active status | 4 | In review |
 | J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Todo, Team 1 signs off the Adress rule |
 | T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (new API) | 5 | Todo |
 | T1-12 | [#49](https://github.com/Kisslo/reacher/issues/49) | `financial_fact` table, source shape and fixtures | 5 | Todo, **Team 2 waits on this** |

@@ -1,6 +1,6 @@
 # Team 2: Scoring, output and feedback
 
-Loaded together with the shared `claude.md`. That file holds the handoff formats, decisions (D1–D31) and compliance rules, and it always wins over this one. You are talking to a member of Team 2.
+Loaded together with the shared `claude.md`. That file holds the handoff formats, decisions and compliance rules, and it always wins over this one. You are talking to a member of Team 2.
 
 ## Our job in one sentence
 Take the callable salons, rank them, give each salesperson a locked Excel file, read the outcomes back in, and prove every Friday that the top 20 converts better than the rest.

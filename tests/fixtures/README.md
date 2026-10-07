@@ -21,6 +21,10 @@ av testerna för `callable_salon` (T1-05) och av Team 2 tills riktig data finns.
   beror på `registered_recently` måste använda ett fast "idag".
 - **Ta inte bort kantfall.** `tests/test_fixtures.py` kontrollerar att varje fall
   i tabellen nedan finns kvar.
+- **Spärrkoderna följer nya API:t (D28, D32).** `ad_block_type`/`phone_block_type`
+  (företaget) och `workplace_*` (arbetsstället) är `reklamSparrTyp`/`telefonSparrTyp`.
+  Vanliga rader har `1` i alla fyra och i `company_status` och `workplace_status`. "Reklamtest NN" heter
+  så efter den gamla tvåsiffriga koden: första siffran är reklam, andra telefon.
 
 ## Antaganden (verifieras i T1-08, #11)
 
@@ -38,9 +42,9 @@ ringbara salonger med varierade signaler.
 
 | Rad | Namn | Varför raden finns |
 |---|---|---|
-| 2 | Kedjan Klipp Söder | Samma orgnr, 3 cfar (1/3). Orgnr med bindestreck |
-| 3 | Kedjan Klipp City | Samma orgnr, 3 cfar (2/3). Orgnr 12 siffror med 16 |
-| 4 | Kedjan Klipp Solna | Samma orgnr, 3 cfar (3/3). Bara ARBETSSTÄLLET har reklamspärr |
+| 2 | Kedjan Klipp Söder | Samma orgnr, 4 cfar (1/4). Orgnr med bindestreck |
+| 3 | Kedjan Klipp City | Samma orgnr, 4 cfar (2/4). Orgnr 12 siffror med 16 |
+| 4 | Kedjan Klipp Solna | Samma orgnr, 4 cfar (3/4). Bara ARBETSSTÄLLET har reklamspärr (2) |
 | 5 | Salong Dubbelgångaren | Dubblett (1/2): orgnr 10 siffror |
 | 6 | Salong Dubbelgångaren | Dubblett (2/2): samma salong, orgnr 16+12 siffror, telefon i annat format |
 | 7 | Hårateljén | Utan cfar (1/2): måste dedupliceras via IFNULL |
@@ -56,7 +60,7 @@ ringbara salonger med varierade signaler.
 | 17 | Frisyr & Form | Fast telefon 08, med mellanslag |
 | 18 | Klipp, Färg & "Form" Åkersberga | Namn med komma, citattecken och åäö (testar CSV-citering) |
 | 19 | Syskonen Sax HB | HB (31), allt okänt -> NIX-regeln gäller INTE |
-| 20 | Okända Salongen AB | AB (49), allt okänt, ad 11 -> NIX-regeln gäller INTE, ska med |
+| 20 | Okända Salongen AB | AB (49), allt okänt, inga spärrar -> NIX-regeln gäller INTE, ska med |
 | 21 | Nollställda AB | AB (49), allt 0 -> fortfarande inte enskild firma, ska med |
 | 22 | Oklara Salongen | Juridisk form 99 (ej fastställd), allt 0 -> behandlas som enskild firma (beslut 3) |
 | 23 | Oklara Men Seriösa | Juridisk form 99 med F-skatt -> ringbar |
@@ -75,15 +79,15 @@ ringbara salonger med varierade signaler.
 | 36 | Salong Solo 12 | Enskild firma: F-skatt avregistrerad men moms -> ringbar |
 | 37 | Salong Solo 13 | Enskild firma: Allt registrerat -> ringbar |
 | 38 | Salong Solo 14 | Enskild firma: Avregistrerad F-skatt, ingen moms, okänd arbetsgivare -> exkluderas |
-| 39 | Reklamtest 12 | ad_status 12 på företaget -> exkluderas |
-| 40 | Reklamtest 13 | ad_status 13 på företaget -> exkluderas (beslut 1) |
-| 41 | Reklamtest 21 | ad_status 21 på företaget -> exkluderas |
-| 42 | Reklamtest 22 | ad_status 22 på företaget -> exkluderas |
-| 43 | Reklamtest 23 | ad_status 23 på företaget -> exkluderas |
-| 44 | Reklamtest tom | ad_status tom på företaget -> exkluderas |
-| 45 | Arbetsställe Okänt | workplace_ad_status tom, företaget 11 -> exkluderas (fail closed) |
-| 46 | Arbetsställe Spärrat | Bara arbetsstället spärrat (22) -> exkluderas |
-| 47 | Nystartade Drömsalongen | SPÄRRAD MEN HÖGT POÄNG: ny (2025), 1-4 anställda, ad 23 -> exkluderas |
+| 39 | Reklamtest 12 | Företaget: reklam 1, telefonspärr 2 -> exkluderas |
+| 40 | Reklamtest 13 | Företaget: reklam 1, NIX-Telefon (3) -> exkluderas |
+| 41 | Reklamtest 21 | Företaget: reklamspärr 2, telefon 1 -> exkluderas |
+| 42 | Reklamtest 22 | Företaget: reklamspärr 2, telefonspärr 2 -> exkluderas |
+| 43 | Reklamtest 23 | Företaget: reklamspärr 2, NIX-Telefon -> exkluderas |
+| 44 | Reklamtest tom | Företagets båda spärrfält tomma -> exkluderas |
+| 45 | Arbetsställe Okänt | Arbetsställets båda spärrfält tomma, företaget 1/1 -> exkluderas (fail closed) |
+| 46 | Arbetsställe Spärrat | Bara arbetsstället spärrat (2/2) -> exkluderas |
+| 47 | Nystartade Drömsalongen | SPÄRRAD MEN HÖGT POÄNG: ny (2025), 1-4 anställda, reklamspärr 2 + NIX -> exkluderas |
 | 48 | Gränsfallet Inom | Registrerad 2024-09-29: precis INOM 24 mån (per 2026-09-28) |
 | 49 | Gränsfallet Utanför | Registrerad 2024-09-27: precis UTANFÖR 24 mån (per 2026-09-28) |
 | 50 | Datumlösa Salongen | Registreringsdatum saknas |
@@ -91,3 +95,13 @@ ringbara salonger med varierade signaler.
 | 52 | Ensamma Saxen | Storleksklass 1 = 0 anställda |
 | 53 | Tomma Klassen | Storleksklass tom |
 | 54 | Stora Salongen | Storleksklass 4 = 10-19 anställda |
+| 72 | Vilande Salongen AB | ftgStat 0 (aldrig verksam) -> exkluderas (D31) |
+| 73 | Avvecklade Salongen AB | ftgStat 9 (ej längre verksam) -> exkluderas (D31) |
+| 74 | Statuslösa Salongen AB | ftgStat tom -> exkluderas (fail closed) |
+| 75 | Dödsboets Salong | Juridisk form 91 med F-skatt, moms och arbetsgivare -> exkluderas (D30). PeOrgNr 19+ med bindestreck |
+| 76 | Formlösa Med F-skatt | Juridisk form tom men F-skatt -> ringbar (D30 får inte slå ut den, D22) |
+| 77 | Arbetsställe NIX | Bara arbetsstället har NIX-Telefon (3) -> exkluderas |
+| 78 | Okänd Spärrkod AB | reklamSparrTyp 7 finns inte -> exkluderas (fail closed) |
+| 79 | Kedjan Klipp Nedlagd | Kedjan Klipps 4:e cfar: verksamt företag men aeStat 9 -> exkluderas (D33) |
+| 80 | Aldrig Öppnade Salongen | aeStat 0 (aldrig verksam) -> exkluderas (D33) |
+| 81 | Arbetsställe Utan Status | aeStat tom -> exkluderas (fail closed) |

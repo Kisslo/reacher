@@ -54,9 +54,10 @@ def add_salon(
     cursor = conn.execute(
         "INSERT INTO salon "
         "(orgnr, name, city, registered_at, employee_class, legal_form, "
-        "ftax_status, vat_status, employer_status, ad_status, "
-        "workplace_ad_status, first_seen_at, last_seen_at) "
-        "VALUES (?, ?, ?, ?, ?, '49', '1', '1', '1', '11', '11', ?, ?)",
+        "ftax_status, vat_status, employer_status, company_status, workplace_status, "
+        "ad_block_type, phone_block_type, workplace_ad_block_type, workplace_phone_block_type, "
+        "first_seen_at, last_seen_at) "
+        "VALUES (?, ?, ?, ?, ?, '49', '1', '1', '1', '1', '1', '1', '1', '1', '1', ?, ?)",
         (name, name, city, registered_at, employee_class, "2026-09-28", "2026-09-28"),
     )
     salon_id = cursor.lastrowid

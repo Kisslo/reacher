@@ -58,11 +58,13 @@ Rules:
   | `ftax_status` | F-skattstatus | `0` never · `1` registered · `9` deregistered |
   | `vat_status` | Momsstatus | `0` never · `1` registered · `3` via representative · `9` deregistered |
   | `employer_status` | Arbetsgivarstatus | `0` never · `1` normal · `2` private employer · `3` via representative · `4` embassy · `9` deregistered |
-  | `ad_status` | Reklam (company) | 1st digit: `1` accepts ads, `2` opted out · 2nd digit: `1` no phone block, `2` telemarketing block, `3` NIX-Telefon |
-  | `workplace_ad_status` | Reklam (workplace) | Same codes as `ad_status` |
+  | `company_status` | ftgStat (company) | `0` never active · `1` active · `9` no longer active |
+  | `workplace_status` | aeStat (workplace) | `0` never active · `1` active · `9` no longer active |
+  | `ad_block_type` / `workplace_ad_block_type` | reklamSparrTyp (company / workplace) | `1` accepts ads · `2` opted out |
+  | `phone_block_type` / `workplace_phone_block_type` | telefonSparrTyp (company / workplace) | `1` no block · `2` telemarketing block · `3` NIX-Telefon |
 - Phone and website come from SCB (D9). Email is **not stored** until there is a use for it (data minimisation). *Assumption.*
 - **Financial facts (D25, D26):** Team 1 delivers Nettoomsättning (`revenue`) and Årets resultat (`net_result`) exactly as reported (whole SEK, sign kept). Team 2 derives `loss_making` / `low_revenue` and owns the thresholds. No annual report (e.g. a sole proprietorship) means no rows, never 0.
-- **New SCB API (D24, D28, D31):** the old two-digit Reklam code is split into `reklamSparrTyp` (1 accepts ads, 2 opted out) and `telefonSparrTyp` (1 no block, 2 telemarketing block, 3 NIX-Telefon), delivered as JSON numbers. `ftgStat` (0 never active, 1 active, 9 no longer active) is delivered as a string. The source converts all codes with `str()` and nothing else. Until T1-10 is merged, D18 and D20 apply.
+- **New SCB API (D24, D28, D31):** the old two-digit Reklam code is split into `reklamSparrTyp` (1 accepts ads, 2 opted out) and `telefonSparrTyp` (1 no block, 2 telemarketing block, 3 NIX-Telefon), delivered as JSON numbers. `ftgStat` (0 never active, 1 active, 9 no longer active) is delivered as a string. The source converts all codes with `str()` and nothing else. Since T1-10 the old ad_status / workplace_ad_status columns are gone (D32).
 - **Address and municipality come from the workplace (D19).** In the new API, `postAdress` and `kommunSate` belong to the legal unit; for a sole proprietorship that is the owner's home. They are never used for Adress/Ort in Excel or for the municipality filter.
 
 ### Format 2: Block list (Team 2 → Team 1).
@@ -172,6 +174,8 @@ You don't remember previous conversations. At the end of each working session, w
 | D29 | 2026-10-06 | **Config over code.** `scoring.yaml` (signals, weights, thresholds) and `sources.yaml` (SNI, municipalities, annual-report legal forms, years, iXBRL tag map) hold what is expected to change. See "Scaling principles". |
 | D30 | 2026-10-06 | **Decided.** Estates (legal form `91`, oskiftat dödsbo) are never callable, even with F-skatt, VAT or employer registration. Written NULL-safe in `callable_salon`, as `(legal_form IS NULL OR legal_form NOT IN ('91'))`, so a missing legal form is still handled by D22. This is the view's only rule that blocks a specific code; every other rule lists the allowed codes. |
 | D31 | 2026-10-06 | **Decided.** Only active companies are callable: SCB `ftgStat` is stored raw as `salon.company_status` (TEXT) and `callable_salon` requires `'1'`. `0` (never active), `9` (no longer active), NULL and unknown are excluded (fail closed). Company-level variable. |
+| D32 | 2026-10-07 | **Pending Team 2 sign-off in the T1-10 PR.** The old two-digit Reklam columns `ad_status` and `workplace_ad_status` (D18, D20) are dropped in migration 006 and replaced by `ad_block_type`, `phone_block_type`, `workplace_ad_block_type`, `workplace_phone_block_type` and `company_status` (D28, D31). The fixtures use the new fields. Reason: the new API has no such code, and keeping both would mean two rules for one block, or an OR that can fail open. Format 1 change. |
+| D33 | 2026-10-07 | **Pending Team 2 sign-off in the T1-10 PR.** Only active workplaces are callable: SCB `aeStat` is stored raw as `salon.workplace_status` (TEXT) and `callable_salon` requires `'1'`. `0` (never active), `9` (no longer active), NULL and unknown are excluded (fail closed). Complements D31, which only checks the company: an active company can have a closed salon. Workplace-level variable (AE partial). Format 1 change. |
 
 ---
 
@@ -209,9 +213,10 @@ Empty chairs can't be observed directly, so ranking is based on signals. Each si
 1. Salons already on Topseat. *Not applied yet: no data source (D8).*
 2. Salons that have asked not to be contacted (the permanent block list).
 3. Sole proprietorships that lack F-skatt (Swedish business tax registration), VAT registration, AND employer registration (see Rules below). Unknown status counts as lacking (D11).
-4. Companies or workplaces with SCB "reklamspärr" or a phone block. New API: both `reklamSparrTyp` and `telefonSparrTyp` must be `1` (D28). Old columns: D20. The phone block also reveals NIX-Telefon registration.
+4. Companies or workplaces with SCB "reklamspärr" or a phone block. New API: both `reklamSparrTyp` and `telefonSparrTyp` must be `1` (D28). On company and workplace. The old two-digit columns are gone (D32). The phone block also reveals NIX-Telefon registration.
 5. Estates (legal form `91`, oskiftat dödsbo), regardless of F-skatt, VAT or employer status (D30).
 6. Companies that are not active according to SCB: `ftgStat` must be `1` (D31).
+7. Workplaces that are not active according to SCB, even if the company is: `aeStat` must be `1` (D33).
 
 ### Pipeline
 ```mermaid
@@ -289,7 +294,7 @@ The list works when salons in the **top 20** respond "Interested" or "Registered
 - ~~Estates (`jurform` 91).~~ Resolved as D30: excluded.
 - ~~Dormant companies / `ftgStat`.~~ Resolved as D31: callable only with `1`.
 - ~~Which years the Excel file shows.~~ Resolved as D27: all available years up to 3. Exact cell format signed off in J-06.
-- **Workplace status (T1-09 → T1-10):** D31 only checks the company, so a closed workplace (`aeStat` `9`) of an active company is callable. Proposal: store `aeStat` raw and require `'1'` in `callable_salon`.
+- ~~**Workplace status (T1-09 → T1-10).**~~ Resolved as D33: `aeStat` stored as `workplace_status`, callable only with `1`.
 - **Bolagsverket status (`bolStat`, konkurs/likvidation):** available on the legal unit. Proposal: no rule in the MVP; revisit after the first real list.
 - **Phone coverage (T1-09 → T1-06, J-04):** in the T1-09 sample, `tel` was empty on both the company and the workplace for both companies. If most salons have no phone in SCB, D9 doesn't hold and the first real list (J-04) has nothing to call. T1-06 measures the share with a phone.
 - **Owner's name on the list:** only 115 of 5,000 workplaces have a Benämning. A sole proprietorship without a registered business name gets `namn`, the owner's personal name, as the salon name in Excel. Acceptable, or show something else?

@@ -7,7 +7,7 @@ Fixtures (T1-03 skriver, T1-04 läser) är två CSV-filer med rubrikrad:
   är ett fel i fixturen och ska avvisas, inte hoppas över.
 
 Format i båda:
-- SCB-koder (legal_form, *_status) som text precis som i källan, t.ex. "1".
+- SCB-koder (legal_form, *_status, *_block_type) som text precis som i källan, t.ex. "1".
 - UTF-8, komma som avgränsare.
 - Tom cell betyder None. Inga "NULL" eller "-". Tom cfar matchar tom cfar.
 - Datum som ÅÅÅÅ-MM-DD.
@@ -56,8 +56,12 @@ class RawSalon:
     ftax_status: str | None = None  # F-skattstatus: 0 / 1 / 9
     vat_status: str | None = None  # Momsstatus: 0 / 1 / 3 / 9
     employer_status: str | None = None  # Arbetsgivarstatus: 0-4 / 9
-    ad_status: str | None = None  # Reklam på företaget: 11-13 / 21-23
-    workplace_ad_status: str | None = None  # Reklam på arbetsstället
+    company_status: str | None = None  # ftgStat (företaget): 0 / 1 / 9
+    workplace_status: str | None = None  # aeStat (arbetsstället): 0 / 1 / 9
+    ad_block_type: str | None = None  # reklamSparrTyp (företaget): 1 / 2
+    phone_block_type: str | None = None  # telefonSparrTyp (företaget): 1 / 2 / 3
+    workplace_ad_block_type: str | None = None  # reklamSparrTyp (arbetsstället)
+    workplace_phone_block_type: str | None = None  # telefonSparrTyp (arbetsstället)
     # MVP: bara fixture-källan fyller i den här. Riktiga signaler kommer från
     # andra källor än salongerna (webbläsaren, Places) och får då en egen
     # SignalSource. RawSignal följer med oförändrad när det händer.

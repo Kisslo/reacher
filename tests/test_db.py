@@ -11,15 +11,19 @@ COMPLIANCE_COLUMNS = (
     "ftax_status",
     "vat_status",
     "employer_status",
-    "ad_status",
-    "workplace_ad_status",
+    "company_status",
+    "workplace_status",
+    "ad_block_type",
+    "phone_block_type",
+    "workplace_ad_block_type",
+    "workplace_phone_block_type",
 )
 
 
 def test_migrate_is_idempotent(tmp_path):
     db = tmp_path / "t.db"
     with closing(connect(db)) as conn:
-        assert migrate(conn) == [1, 2, 3, 4, 5]
+        assert migrate(conn) == [1, 2, 3, 4, 5, 6]
     with closing(connect(db)) as conn:
         assert migrate(conn) == []  # andra körningen gör ingenting
 
@@ -51,7 +55,7 @@ def test_rows_built_before_t2_08_keep_signals_null(tmp_path, monkeypatch):
         conn.commit()
 
         monkeypatch.undo()
-        assert migrate(conn) == [5]
+        assert migrate(conn) == [5, 6]
         assert conn.execute("SELECT signals FROM call_list_row").fetchone()[0] is None
 
 
@@ -107,12 +111,13 @@ def test_compliance_fields_store_unknown_codes_raw(tmp_path):
             assert cols[col]["notnull"] == 0
 
         conn.execute(
-            "INSERT INTO salon (orgnr, name, first_seen_at, last_seen_at, ftax_status, ad_status) "
-            "VALUES ('5561234567', 'Klipp & Co', '2026-01-01', '2026-01-01', '7', '99')"
+            "INSERT INTO salon "
+            "(orgnr, name, first_seen_at, last_seen_at, ftax_status, ad_block_type) "
+            "VALUES ('5561234567', 'Klipp & Co', '2026-01-01', '2026-01-01', '7', '5')"
         )
         row = conn.execute("SELECT * FROM salon").fetchone()
         assert row["ftax_status"] == "7"  # okänd kod, lagrad som den kom
-        assert row["ad_status"] == "99"
+        assert row["ad_block_type"] == "5"
         assert row["legal_form"] is None  # källan sa ingenting
 
 
@@ -122,3 +127,12 @@ def test_salon_has_no_area_column(tmp_path):
         migrate(conn)
         columns = {r["name"] for r in conn.execute("PRAGMA table_info(salon)")}
         assert "area" not in columns and "city" in columns
+
+
+def test_old_reklam_columns_are_gone(tmp_path):
+    """D32: den tvåsiffriga Reklam-koden finns inte i nya API:t. En kvarglömd
+    kolumn utan källa skulle se ut som data men alltid vara NULL."""
+    with closing(connect(tmp_path / "t.db")) as conn:
+        migrate(conn)
+        columns = {r["name"] for r in conn.execute("PRAGMA table_info(salon)")}
+        assert not columns & {"ad_status", "workplace_ad_status"}

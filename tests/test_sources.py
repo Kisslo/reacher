@@ -46,7 +46,7 @@ def test_csv_columns_follow_raw_salon():
     """T1-03 och T1-04 bygger på den här ordningen; ändras den ska det märkas."""
     assert CSV_COLUMNS[:2] == ("orgnr", "name")
     assert "signals" not in CSV_COLUMNS  # signaler ligger i signals.csv
-    assert len(CSV_COLUMNS) == 18
+    assert len(CSV_COLUMNS) == 22
 
 
 def test_signal_csv_columns_link_to_salon_and_mirror_the_table():
@@ -71,8 +71,12 @@ COMPLIANCE_FIELDS = (
     "ftax_status",
     "vat_status",
     "employer_status",
-    "ad_status",
-    "workplace_ad_status",
+    "company_status",
+    "workplace_status",
+    "ad_block_type",
+    "phone_block_type",
+    "workplace_ad_block_type",
+    "workplace_phone_block_type",
 )
 
 

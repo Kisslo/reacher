@@ -1,5 +1,5 @@
 """T1-04: ingest från fixtures. Siffrorna nedan följer kantfallstabellen i
-tests/fixtures/README.md: 70 poster, 3 ogiltiga orgnr, 2 dubbletter -> 65 salonger."""
+tests/fixtures/README.md: 80 poster, 3 ogiltiga orgnr, 2 dubbletter -> 75 salonger."""
 
 import csv
 from contextlib import closing
@@ -53,14 +53,14 @@ def phones_of(conn, orgnr):
 
 def test_first_run(conn):
     s = load(conn)
-    assert (s.inserted, s.updated, s.rejected, s.invalid_phones) == (65, 2, 3, 2)
+    assert (s.inserted, s.updated, s.rejected, s.invalid_phones) == (75, 2, 3, 2)
 
 
 def test_second_run_gives_the_same_database(conn):
     load(conn, now=T1)
     before = snapshot(conn)
     s = load(conn, now=T2)
-    assert (s.inserted, s.updated, s.rejected) == (0, 67, 3)
+    assert (s.inserted, s.updated, s.rejected) == (0, 77, 3)
     assert snapshot(conn) == before
 
 
@@ -120,9 +120,9 @@ def test_websites_are_stored_and_email_never(conn):
 
 def test_missing_code_overwrites_old_code(conn):
     """Fail closed: säger källan inte längre något ska den gamla koden bort."""
-    ingest(conn, [RawSalon(orgnr="5590001011", name="X", ad_status="11")], now=T1)
-    ingest(conn, [RawSalon(orgnr="5590001011", name="X", ad_status=None)], now=T2)
-    assert conn.execute("SELECT ad_status FROM salon").fetchone()[0] is None
+    ingest(conn, [RawSalon(orgnr="5590001011", name="X", ad_block_type="1")], now=T1)
+    ingest(conn, [RawSalon(orgnr="5590001011", name="X", ad_block_type=None)], now=T2)
+    assert conn.execute("SELECT ad_block_type FROM salon").fetchone()[0] is None
 
 
 def test_signal_without_salon_stops_the_source(tmp_path):
@@ -143,8 +143,8 @@ def test_load_seed_twice_via_cli(tmp_path):
     first = runner.invoke(app, ["load-seed", "--db", db])
     second = runner.invoke(app, ["load-seed", "--db", db])
     assert first.exit_code == 0 and second.exit_code == 0
-    assert "65 nya, 2 uppdaterade, 3 avvisade" in first.stdout
-    assert "0 nya, 67 uppdaterade, 3 avvisade" in second.stdout
+    assert "75 nya, 2 uppdaterade, 3 avvisade" in first.stdout
+    assert "0 nya, 77 uppdaterade, 3 avvisade" in second.stdout
 
 
 def test_ingest_csv_requires_path(tmp_path):
