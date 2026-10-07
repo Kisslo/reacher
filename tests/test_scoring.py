@@ -1,5 +1,5 @@
-"""Scoring ur salongens fakta (T2-01). Vikterna i testerna är egna, inte de incheckade,
-så att tuning av scoring.yaml aldrig får testerna att gå sönder."""
+"""Scoring ur salongens fakta (T2-01, T2-08). Vikterna i testerna är egna, inte de
+incheckade, så att tuning av scoring.yaml aldrig får testerna att gå sönder."""
 
 from contextlib import closing
 from datetime import date
@@ -20,15 +20,23 @@ TODAY = date(2026, 9, 28)
 EQUAL_WEIGHTS = {"registered_recently": 1, "small_employer": 1}
 
 
-def make_config(weights=None, months=24, classes=("2",)) -> ScoringConfig:
+def make_config(weights=None, months=24, classes=("2",), disabled=()) -> ScoringConfig:
+    weights = EQUAL_WEIGHTS if weights is None else weights
     return ScoringConfig.model_validate(
         {
             "version": "test",
             "half_life_days": 90,
-            "weights": EQUAL_WEIGHTS if weights is None else weights,
-            "thresholds": {
-                "registered_recently_months": months,
-                "small_employer_classes": list(classes),
+            "signals": {
+                "registered_recently": {
+                    "enabled": "registered_recently" not in disabled,
+                    "weight": weights["registered_recently"],
+                    "months": months,
+                },
+                "small_employer": {
+                    "enabled": "small_employer" not in disabled,
+                    "weight": weights["small_employer"],
+                    "classes": list(classes),
+                },
             },
         }
     )
@@ -137,12 +145,14 @@ def test_missing_facts_give_zero_not_a_crash():
     score = score_salon(facts(), CFG, TODAY)
     assert score.total == 0
     assert score.reasons == ()
+    assert score.signals == ()
 
 
 def test_both_signals_add_up():
     score = score_salon(facts(registered_at=date(2026, 1, 28), employee_class="2"), CFG, TODAY)
     assert score.total == 2
     assert score.reasons == ("Registrerad för 8 månader sedan", "1-4 anställda")
+    assert score.signals == ("registered_recently", "small_employer")
 
 
 def test_weights_come_from_config():
@@ -150,12 +160,33 @@ def test_weights_come_from_config():
     assert score_salon(facts(employee_class="2"), cfg, TODAY).total == 2.5
 
 
-def test_signal_without_weight_gives_no_points_and_no_reason():
-    """Att ta bort en hypotes ur scoring.yaml ska ge noll, inte KeyError, och inget skäl."""
-    for weights in ({"registered_recently": 1}, {"registered_recently": 1, "small_employer": 0}):
-        score = score_salon(facts(employee_class="2"), make_config(weights=weights), TODAY)
-        assert score.total == 0
-        assert score.reasons == ()
+# --- på/av och skuggläge (T2-08) --------------------------------------------
+
+
+def test_shadow_signal_is_derived_but_gives_no_points_and_no_reason():
+    """weight: 0 (D26): salongen har signalen, men säljaren ser den inte och den
+    påverkar inte ordningen. Den måste ändå finnas i signals, annars kan T2-07
+    aldrig mäta om den hjälper."""
+    cfg = make_config(weights={"registered_recently": 1, "small_employer": 0})
+    score = score_salon(facts(registered_at=date(2026, 1, 28), employee_class="2"), cfg, TODAY)
+    assert score.total == 1
+    assert score.reasons == ("Registrerad för 8 månader sedan",)
+    assert score.signals == ("registered_recently", "small_employer")
+
+
+def test_disabled_signal_is_not_derived_at_all():
+    """enabled: false: varken poäng, skäl eller spår i signals, oavsett vikt."""
+    cfg = make_config(disabled=("small_employer",))
+    score = score_salon(facts(registered_at=date(2026, 1, 28), employee_class="2"), cfg, TODAY)
+    assert score.total == 1
+    assert score.reasons == ("Registrerad för 8 månader sedan",)
+    assert score.signals == ("registered_recently",)
+
+
+def test_all_signals_disabled_gives_zero():
+    cfg = make_config(disabled=("registered_recently", "small_employer"))
+    score = score_salon(facts(registered_at=date(2026, 1, 28), employee_class="2"), cfg, TODAY)
+    assert (score.total, score.reasons, score.signals) == (0, (), ())
 
 
 def test_changing_a_weight_in_scoring_yaml_changes_the_ranking(tmp_path):

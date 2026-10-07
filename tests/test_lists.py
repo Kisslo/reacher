@@ -9,20 +9,30 @@ from openpyxl import load_workbook
 from reacher.cli import build_lists as cli_build_lists
 from reacher.config import ScoringConfig
 from reacher.db import connect, migrate
+from reacher.excel.contract import COL, FIRST_DATA_ROW, SHEET
 from reacher.lists import build_call_lists
 
 TODAY = date(2026, 9, 28)
-CONFIG = ScoringConfig.model_validate(
-    {
-        "version": "test-v1",
-        "half_life_days": 90,
-        "weights": {"registered_recently": 1, "small_employer": 1},
-        "thresholds": {
-            "registered_recently_months": 24,
-            "small_employer_classes": ["2"],
-        },
-    }
-)
+
+
+def make_config(small_employer_weight=1) -> ScoringConfig:
+    return ScoringConfig.model_validate(
+        {
+            "version": "test-v1",
+            "half_life_days": 90,
+            "signals": {
+                "registered_recently": {"enabled": True, "weight": 1, "months": 24},
+                "small_employer": {
+                    "enabled": True,
+                    "weight": small_employer_weight,
+                    "classes": ["2"],
+                },
+            },
+        }
+    )
+
+
+CONFIG = make_config()
 
 
 @pytest.fixture
@@ -83,7 +93,7 @@ def test_build_lists_ranks_splits_and_counts_missing_phones(conn):
     assert all(item.skipped_without_phone == 1 for item in built)
 
 
-def test_snapshot_freezes_score_reasons_and_phone(conn):
+def test_snapshot_freezes_score_reasons_signals_and_phone(conn):
     salon_id = add_salon(
         conn,
         "Frozen Salon",
@@ -97,12 +107,14 @@ def test_snapshot_freezes_score_reasons_and_phone(conn):
     original = built[0].rows[0]
 
     conn.execute(
-        "UPDATE salon SET city = 'Gothenburg', registered_at = '2010-01-01' WHERE id = ?",
+        "UPDATE salon SET city = 'Gothenburg', registered_at = '2010-01-01', "
+        "employee_class = '1' WHERE id = ?",
         (salon_id,),
     )
     conn.execute("UPDATE contact SET value = '+469999' WHERE salon_id = ?", (salon_id,))
     stored = conn.execute(
-        "SELECT score, reasons, phone FROM call_list_row WHERE id = ?", (original.row_id,)
+        "SELECT score, reasons, signals, phone FROM call_list_row WHERE id = ?",
+        (original.row_id,),
     ).fetchone()
 
     assert stored["score"] == 2
@@ -110,8 +122,42 @@ def test_snapshot_freezes_score_reasons_and_phone(conn):
         "Registrerad för 8 månader sedan",
         "1-4 anställda",
     ]
+    assert json.loads(stored["signals"]) == ["registered_recently", "small_employer"]
     assert stored["phone"] == "+461234"
     assert original.area == "Stockholm"
+
+
+def test_salon_without_signals_stores_an_empty_list_not_null(conn):
+    """NULL betyder "byggd före T2-08, okänt". En rad utan signaler är []."""
+    add_salon(conn, "Plain Salon", phone="+461")
+
+    built = build_call_lists(conn, "2026w40", ("anna",), CONFIG, TODAY)
+
+    stored = conn.execute(
+        "SELECT signals FROM call_list_row WHERE id = ?", (built[0].rows[0].row_id,)
+    ).fetchone()
+    assert json.loads(stored["signals"]) == []
+
+
+def test_shadow_signal_is_stored_but_not_shown(conn, tmp_path, monkeypatch):
+    """weight: 0 (D26): signalen fryses i call_list_row.signals så att T2-07 kan
+    mäta den, men den ger inga poäng och syns inte i "Varför vi ringer"."""
+    add_salon(conn, "Shadow Salon", employee_class="2", phone="+461")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "reacher.config.ScoringConfig.load", lambda: make_config(small_employer_weight=0)
+    )
+
+    cli_build_lists("2026w40", "anna", tmp_path / "lists.db")
+
+    stored = conn.execute("SELECT score, reasons, signals FROM call_list_row").fetchone()
+    assert stored["score"] == 0
+    assert json.loads(stored["reasons"]) == []
+    assert json.loads(stored["signals"]) == ["small_employer"]
+
+    sheet = load_workbook(tmp_path / "output" / "2026w40_anna.xlsx")[SHEET]
+    assert not sheet.cell(row=FIRST_DATA_ROW, column=COL["Varför vi ringer"]).value
+    assert sheet.cell(row=FIRST_DATA_ROW, column=COL["Salong"]).value == "Shadow Salon"
 
 
 def test_duplicate_week_and_seller_rolls_back(conn):

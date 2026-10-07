@@ -46,8 +46,8 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 | T2-05 | [#19](https://github.com/Kisslo/reacher/issues/19) | Simulated outcomes for demos | 4 | Done |
 | T2-06 | [#20](https://github.com/Kisslo/reacher/issues/20) | Report: top 20 vs the rest | 4 | Done |
 | J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Done |
-| J-05 | [#44](https://github.com/Kisslo/reacher/issues/44) | Update shared context for SCB new API and Bolagsverket | 3 | In review |
-| T2-08 | [#52](https://github.com/Kisslo/reacher/issues/52) | Signal registry, on/off switch and shadow mode | 4 | Todo |
+| J-05 | [#44](https://github.com/Kisslo/reacher/issues/44) | Update shared context for SCB new API and Bolagsverket | 3 | Done |
+| T2-08 | [#52](https://github.com/Kisslo/reacher/issues/52) | Signal registry, on/off switch and shadow mode | 4 | Done |
 | J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Todo |
 | T2-09 | [#53](https://github.com/Kisslo/reacher/issues/53) | Financial signals in shadow mode | 5 | Todo, waits on T1-12 |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
@@ -63,8 +63,8 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 
 ## Team 2 open questions
 - ~~How is "reached" defined in the report?~~ Resolved as D23.
-- ~~Where does the 24-month threshold live?~~ Resolved (T2-01): in `scoring.yaml`. Moves into the per-signal block in T2-08.
+- ~~Where does the 24-month threshold live?~~ Resolved (T2-01, T2-08): `months` in the `registered_recently` block of `scoring.yaml`.
 - Rows are split fairly and deterministically by alternating global rank (T2-02 implementation default).
-- **`anstKl` scale** (from T1-09): if the new API uses the SME scale, `small_employer_classes: ["2"]` is wrong.
+- **`anstKl` scale** (from T1-09): if the new API uses the SME scale, `classes: ["2"]` in the `small_employer` block is wrong.
 - **`low_revenue` threshold:** the starting value is an assumption (weight 0, so it can't affect lists yet). Alternatively SCB's Omsättning size class, if the API exposes it.
 - ~~**Excel financials:** which years?~~ Resolved as D27: all available years up to 3, one line per year in the Omsättning and Resultat cells. Final format signed off in J-06.

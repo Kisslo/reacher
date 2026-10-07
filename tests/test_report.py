@@ -25,10 +25,9 @@ CONFIG = ScoringConfig.model_validate(
     {
         "version": "test-v1",
         "half_life_days": 90,
-        "weights": {"registered_recently": 1, "small_employer": 1},
-        "thresholds": {
-            "registered_recently_months": 24,
-            "small_employer_classes": ["2"],
+        "signals": {
+            "registered_recently": {"enabled": True, "weight": 1, "months": 24},
+            "small_employer": {"enabled": True, "weight": 1, "classes": ["2"]},
         },
     }
 )
