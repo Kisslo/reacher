@@ -8,6 +8,7 @@ av testerna för `callable_salon` (T1-05) och av Team 2 tills riktig data finns.
 | `salons.csv` | En rad per salong, kolumnerna i `CSV_COLUMNS` (`sources/base.py`). Rå och stökig med flit: normalisering sker vid ingest (T1-04). |
 | `signals.csv` | Bara rubrikrad. Evidensbaserade signaler är parkerade (D4). |
 | `ground_truth.csv` | `has_empty_chairs` per normaliserat orgnr + cfar. **Läses BARA av simuleringen (T2-05), aldrig av ingest eller poängsättning.** |
+| `scb/` | Inspelade, anonymiserade svar från SCB:s nya API (T1-09). Beskrivs i `docs/scb-fields.md`. Läses av adapter-testerna (T1-06). |
 
 ## Regler
 

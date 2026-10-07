@@ -1,0 +1,45 @@
+{
+  "peOrgNr": "198013012342",
+  "orgNr": "8013012342",
+  "namn": "Fiktivsson, Fiktiv",
+  "postAdress": {
+    "gatuAdress": "Hemlösa vägen 99",
+    "coAdress": "",
+    "postNr": "13140",
+    "postOrt": "NACKA"
+  },
+  "kommunSate": "0182",
+  "lanSate": "01",
+  "aeAnt": 1,
+  "anstKl": "2",
+  "ftgStat": "1",
+  "jurform": "10",
+  "reklamSparrTyp": 1,
+  "telefonSparrTyp": 1,
+  "epostSparrTyp": 1,
+  "startDat": "2025-02-02T23:00:00.000Z",
+  "slutDat": "2020-12-31T23:00:00.000Z",
+  "regDat": "2025-01-20T15:16:00.000Z",
+  "expImp": "0",
+  "tel": "08-46500401",
+  "epost": "",
+  "omsAr": 2024,
+  "omsKl": "1",
+  "agKat": "41",
+  "foretagsnamn": "",
+  "foretagsnamnAnt": 1,
+  "arbGivStat": "0",
+  "momsStat": "1",
+  "fSkattStat": "1",
+  "bolStat": "0",
+  "privPubl": "0",
+  "sektor": "141000",
+  "naringsgrenar": [
+    {
+      "rangordning": 1,
+      "naringsgren": "96210",
+      "andelProcent": 100,
+      "avdelningsKod": "T"
+    }
+  ]
+}

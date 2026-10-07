@@ -1,0 +1,96 @@
+{
+  "pagination": {
+    "nextCursorId": 4711,
+    "limit": 3,
+    "hasMore": true
+  },
+  "arbetsstallen": [
+    {
+      "cfarNr": 90000001,
+      "peOrgNr": "165599001236",
+      "ben": "Påhittade Saxen Söder",
+      "primarNaringsgren": {
+        "rangordning": 1,
+        "naringsgren": "96210",
+        "andelProcent": 100,
+        "avdelningsKod": "T"
+      },
+      "postAdress": {
+        "gatuAdress": "Box 9901",
+        "coAdress": "",
+        "postNr": "11800",
+        "postOrt": "STOCKHOLM"
+      },
+      "belagenhetsadress": {
+        "lan": "01",
+        "kommun": "0180",
+        "bGatuAdress": "Påhittade gatan 1",
+        "bPostNr": "11850",
+        "bPostOrt": "STOCKHOLM"
+      },
+      "aeStat": "1",
+      "anstKl": "2",
+      "reklamSparrTyp": 1,
+      "telefonSparrTyp": 1,
+      "epostSparrTyp": 1
+    },
+    {
+      "cfarNr": 90000002,
+      "peOrgNr": "165599001236",
+      "ben": "",
+      "primarNaringsgren": {
+        "rangordning": 1,
+        "naringsgren": "96210",
+        "andelProcent": 100,
+        "avdelningsKod": "T"
+      },
+      "postAdress": {
+        "gatuAdress": "Box 9901",
+        "coAdress": "",
+        "postNr": "11800",
+        "postOrt": "STOCKHOLM"
+      },
+      "belagenhetsadress": {
+        "lan": "01",
+        "kommun": "0184",
+        "bGatuAdress": "Låtsasvägen 2",
+        "bPostNr": "16950",
+        "bPostOrt": "SOLNA"
+      },
+      "aeStat": "1",
+      "anstKl": "3",
+      "reklamSparrTyp": 1,
+      "telefonSparrTyp": 2,
+      "epostSparrTyp": 1
+    },
+    {
+      "cfarNr": 90000003,
+      "peOrgNr": "198013012342",
+      "ben": " ",
+      "primarNaringsgren": {
+        "rangordning": 1,
+        "naringsgren": "96210",
+        "andelProcent": 100,
+        "avdelningsKod": "T"
+      },
+      "postAdress": {
+        "gatuAdress": "Hemlösa vägen 99",
+        "coAdress": "",
+        "postNr": "13140",
+        "postOrt": "NACKA"
+      },
+      "belagenhetsadress": {
+        "lan": "01",
+        "kommun": "0180",
+        "bGatuAdress": "Fiktiva torget 3",
+        "bPostNr": "11860",
+        "bPostOrt": "STOCKHOLM"
+      },
+      "aeStat": "1",
+      "anstKl": "2",
+      "reklamSparrTyp": 1,
+      "telefonSparrTyp": 1,
+      "epostSparrTyp": 1
+    }
+  ]
+}
