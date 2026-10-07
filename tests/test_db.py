@@ -1,9 +1,10 @@
+import shutil
 import sqlite3
 from contextlib import closing
 
 import pytest
 
-from reacher.db import connect, migrate
+from reacher.db import MIGRATIONS_DIR, connect, migrate
 
 COMPLIANCE_COLUMNS = (
     "legal_form",
@@ -18,9 +19,40 @@ COMPLIANCE_COLUMNS = (
 def test_migrate_is_idempotent(tmp_path):
     db = tmp_path / "t.db"
     with closing(connect(db)) as conn:
-        assert migrate(conn) == [1, 2, 3, 4]
+        assert migrate(conn) == [1, 2, 3, 4, 5]
     with closing(connect(db)) as conn:
         assert migrate(conn) == []  # andra körningen gör ingenting
+
+
+def test_rows_built_before_t2_08_keep_signals_null(tmp_path, monkeypatch):
+    """Migration 005 får inte påstå att gamla rader saknade signaler: NULL = okänt."""
+    old_migrations = tmp_path / "old_migrations"
+    old_migrations.mkdir()
+    for sql_file in sorted(MIGRATIONS_DIR.glob("*.sql")):
+        if int(sql_file.name.split("_", 1)[0]) < 5:
+            shutil.copy(sql_file, old_migrations)
+
+    db = tmp_path / "t.db"
+    with closing(connect(db)) as conn:
+        monkeypatch.setattr("reacher.db.MIGRATIONS_DIR", old_migrations)
+        migrate(conn)
+        conn.execute(
+            "INSERT INTO salon (orgnr, name, first_seen_at, last_seen_at) "
+            "VALUES ('5561234567', 'Klipp & Co', '2026-01-01', '2026-01-01')"
+        )
+        conn.execute(
+            "INSERT INTO call_list (week, seller, scoring_version, created_at) "
+            "VALUES ('2026w40', 'anna', 'v2', '2026-09-28')"
+        )
+        conn.execute(
+            "INSERT INTO call_list_row (call_list_id, salon_id, rank, score, reasons) "
+            "VALUES (1, 1, 1, 2, '[]')"
+        )
+        conn.commit()
+
+        monkeypatch.undo()
+        assert migrate(conn) == [5]
+        assert conn.execute("SELECT signals FROM call_list_row").fetchone()[0] is None
 
 
 def test_orgnr_without_cfar_is_deduped(tmp_path):

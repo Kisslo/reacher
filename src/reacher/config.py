@@ -1,29 +1,33 @@
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model
 
+from reacher.scoring import SIGNALS, SignalSettings
 
-class Thresholds(BaseModel):
-    """Gränserna för signalerna Team 2 härleder ur salongens fakta (D6)."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    registered_recently_months: int = Field(gt=0)
-    # SCB-koder som text, precis som i salon.employee_class. En okvoterad 2 i
-    # YAML blir en int och avvisas, eftersom den aldrig skulle matcha "2".
-    small_employer_classes: list[str] = Field(min_length=1)
+# Ett obligatoriskt fält per signal i registret, med signalens egen modell.
+# extra="forbid" gör att ett okänt namn (stavfel eller signal utan
+# härledningsfunktion) stoppar inläsningen, och en signal som saknas i
+# scoring.yaml gör det också: att stänga av en signal är alltid ett uttryckligt
+# enabled: false, aldrig ett borttaget block (D29).
+Signals = create_model(
+    "Signals",
+    __config__=ConfigDict(extra="forbid"),
+    **{key: (signal.settings, ...) for key, signal in SIGNALS.items()},
+)
 
 
 class ScoringConfig(BaseModel):
-    # extra="forbid" fångar stavfel i YAML. Utan den blir "weigths:" tyst ignorerat
+    # extra="forbid" fångar stavfel i YAML. Utan den blir "signal:" tyst ignorerat
     # och alla får noll poäng, vilket är en otrevlig halvdag att felsöka.
     model_config = ConfigDict(extra="forbid")
 
     version: str
     half_life_days: float = Field(gt=0)
-    weights: dict[str, float]
-    thresholds: Thresholds
+    signals: Signals
+
+    def signal(self, key: str) -> SignalSettings:
+        return getattr(self.signals, key)
 
     @classmethod
     def load(cls, path: Path = Path("scoring.yaml")) -> "ScoringConfig":

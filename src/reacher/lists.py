@@ -32,6 +32,7 @@ class SnapshotRow:
     rank: int
     score: float
     reasons: tuple[str, ...]
+    signals: tuple[str, ...]
     phone: str
     salon: str
     area: str
@@ -127,14 +128,15 @@ def build_call_lists(
 
                 cursor = conn.execute(
                     "INSERT INTO call_list_row "
-                    "(call_list_id, salon_id, rank, score, reasons, phone) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    "(call_list_id, salon_id, rank, score, reasons, signals, phone) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (
                         call_list_id,
                         salon.salon_id,
                         rank,
                         salon.score.total,
                         json.dumps(salon.score.reasons, ensure_ascii=False),
+                        json.dumps(salon.score.signals),
                         salon.phone,
                     ),
                 )
@@ -145,6 +147,7 @@ def build_call_lists(
                         rank=rank,
                         score=salon.score.total,
                         reasons=salon.score.reasons,
+                        signals=salon.score.signals,
                         phone=salon.phone,
                         salon=salon.name,
                         area=salon.area,
