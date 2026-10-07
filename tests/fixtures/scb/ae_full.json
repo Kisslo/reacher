@@ -1,0 +1,46 @@
+{
+  "cfarNr": 90000003,
+  "peOrgNr": "198013012342",
+  "ben": " ",
+  "postAdress": {
+    "gatuAdress": "Hemlösa vägen 99",
+    "coAdress": "",
+    "postNr": "13140",
+    "postOrt": "NACKA"
+  },
+  "belagenhetsadress": {
+    "lan": "01",
+    "kommun": "0180",
+    "bGatuAdress": "Fiktiva torget 3",
+    "bPostNr": "11860",
+    "bPostOrt": "STOCKHOLM"
+  },
+  "aeStat": 1,
+  "anstKl": 2,
+  "hjVerksJE": 1,
+  "reklamSparrTyp": 1,
+  "telefonSparrTyp": 1,
+  "epostSparrTyp": 1,
+  "startDat": "2025-02-02T23:00:00.000Z",
+  "tel": "",
+  "epost": "",
+  "aeTyp": 1,
+  "geografiskInformation": {
+    "nordKoordinatSW": 6580000,
+    "ostKoordinatSW": 674000,
+    "nordKoordinatAdressSW": 6580000,
+    "ostKoordinatAdressSW": 674000,
+    "tatSmaTypKod": "T",
+    "tatSmaTypText": "Tätort",
+    "tatOrtSmaOrtKod": "T0000",
+    "tatOrtSmaOrtBen": "Påhittorp"
+  },
+  "naringsgrenar": [
+    {
+      "rangordning": 1,
+      "naringsgren": "96210",
+      "andelProcent": 100,
+      "avdelningsKod": "T"
+    }
+  ]
+}

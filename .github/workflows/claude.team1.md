@@ -20,7 +20,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 ## What we hand over and what we consume
 - **We deliver (Format 1):** `salon`, `contact` and `financial_fact` rows with raw facts only. We never compute points or thresholds (D6). Whether a salon is "loss-making" or has "low revenue" is Team 2's call (D26).
 - **We consume (Format 2):** the `suppression` table that Team 2 writes. We don't write `opt_out` or `existing_customer`. We read them in `callable_salon`.
-- **Team 2 is waiting on us for:** the `anstKl` answer from T1-09 (affects `small_employer_classes`) and T1-12 (`financial_fact` + fixtures) for T2-09.
+- **Team 2 is waiting on us for:** T1-12 (`financial_fact` + fixtures) for T2-09. The `anstKl` answer is in `docs/scb-fields.md` (T1-09).
 
 ## Working rules for Team 1
 - **Normalise at ingest, not in the source.** Sources yield data exactly as the register delivers it. That way every source gets the same cleaning, and fixtures can be as messy as reality.
@@ -54,8 +54,8 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | T1-04 | [#13](https://github.com/Kisslo/reacher/issues/13) | CSV ingest and load-seed | 3 | Done |
 | T1-05 | [#14](https://github.com/Kisslo/reacher/issues/14) | `callable_salon` view | 3 | Done |
 | J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Done |
-| J-05 | [#44](https://github.com/Kisslo/reacher/issues/44) | Update shared context for SCB new API and Bolagsverket | 3 | In review |
-| T1-09 | [#46](https://github.com/Kisslo/reacher/issues/46) | Document the SCB new API fields | 4 | Todo |
+| J-05 | [#44](https://github.com/Kisslo/reacher/issues/44) | Update shared context for SCB new API and Bolagsverket | 3 | Done |
+| T1-09 | [#46](https://github.com/Kisslo/reacher/issues/46) | Document the SCB new API fields | 4 | Done |
 | T1-11 | [#48](https://github.com/Kisslo/reacher/issues/48) | Source config and local API keys | 4 | Todo |
 | T1-10 | [#47](https://github.com/Kisslo/reacher/issues/47) | New-API compliance fields, estates and active status | 4 | Todo |
 | J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Todo, Team 1 signs off the Adress rule |
@@ -69,11 +69,10 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
 
 ## Team status
-*Session 2026-10-06*
-- **Done:** source contract, compliance fields, fixtures, CSV ingest, `callable_salon`, end-to-end demo.
-- **In progress:** J-05 (context update).
+*Session 2026-10-07*
+- **Done:** source contract, compliance fields, fixtures, CSV ingest, `callable_salon`, end-to-end demo, J-05, T1-09 (SCB new API documented, recorded responses in `tests/fixtures/scb/`).
 - **Blocked:** T1-14 on Bolagsverket API context.
-- **Next up:** T1-09 → T1-11 → T1-10 → T1-06 → T1-12 → T1-13.
+- **Next up:** T1-11 → T1-10 → T1-06 → T1-12 → T1-13.
 
 ## Team 1 open questions
-See the shared open questions in `claude.md`. Ours to answer in T1-09: the workplace endpoint, `anstKl` scale, SCB Omsättning and the JSON types of every code.
+See the shared open questions in `claude.md`. T1-09 answered the workplace endpoint, the `anstKl` scale, SCB Omsättning and the JSON types (`docs/scb-fields.md`). New from T1-09: workplace status (`aeStat`), Bolagsverket status (`bolStat`), phone coverage and the owner's name, see the shared open questions.

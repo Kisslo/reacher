@@ -283,12 +283,16 @@ The list works when salons in the **top 20** respond "Interested" or "Registered
 - **Salon name:** SCB's "Företagsnamn" is the owner's personal name for a sole proprietorship. Proposal: use "Benämning" (the workplace's everyday name), then "Firma", then "Företagsnamn".
 - **orgnr normalisation (T1-04):** SCB's PeOrgNr is 12 digits. Legal persons have the prefix `16`, sole proprietorships `19`/`20` (personnummer). Normalisation must handle both.
 - ~~**Area ("Område"):** SCB gives municipality and postal code, not district. For the MVP, `area` = postal town. *Assumption.*~~
-- **New SCB API (T1-09):** which endpoint has workplaces (`cfar`, visiting address, workplace municipality, workplace-level blocks)? The Juridiska enheter sample only has `postAdress` and `kommunSate`. Are F-skatt, moms, arbetsgivare, registration/start date, phone and website delivered?
-- **`anstKl` scale (T1-09 → Team 2):** Storleksklass Anställda (`2` = 1–4) or the SME scale (`1` = 1–9)? If SME, `small_employer_classes` must change, or `small_employer` scores the wrong salons.
-- **SCB's own Omsättning:** the register has a revenue size class (from VAT returns) + Omsättning År, which also covers sole proprietorships. If the new API exposes it, should it feed `low_revenue` and act as the SCB-first filter before Bolagsverket?
+- ~~**New SCB API (T1-09):** which endpoint has workplaces, and which fields are delivered?~~ Answered in `docs/scb-fields.md`: workplaces come from `/arbetsstallen` (visiting address, workplace municipality, both blocks). F-skatt, moms, arbetsgivare, `ftgStat` and the registration date are on the legal unit; phone is on both. There is no website field, although D9 assumed there was.
+- ~~**`anstKl` scale (T1-09 → Team 2)**~~ Answered in `docs/scb-fields.md`: Storleksklass Anställda (`2` = 1–4), so `small_employer_classes: ["2"]` is correct.
+- **SCB's own Omsättning:** the register has a revenue size class (from VAT returns) + Omsättning År, which also covers sole proprietorships. The new API exposes it (`omsKl` + `omsAr` on the legal unit, T1-09). Should it feed `low_revenue` and act as the SCB-first filter before Bolagsverket?
 - ~~Estates (`jurform` 91).~~ Resolved as D30: excluded.
 - ~~Dormant companies / `ftgStat`.~~ Resolved as D31: callable only with `1`.
 - ~~Which years the Excel file shows.~~ Resolved as D27: all available years up to 3. Exact cell format signed off in J-06.
+- **Workplace status (T1-09 → T1-10):** D31 only checks the company, so a closed workplace (`aeStat` `9`) of an active company is callable. Proposal: store `aeStat` raw and require `'1'` in `callable_salon`.
+- **Bolagsverket status (`bolStat`, konkurs/likvidation):** available on the legal unit. Proposal: no rule in the MVP; revisit after the first real list.
+- **Phone coverage (T1-09 → T1-06, J-04):** in the T1-09 sample, `tel` was empty on both the company and the workplace for both companies. If most salons have no phone in SCB, D9 doesn't hold and the first real list (J-04) has nothing to call. T1-06 measures the share with a phone.
+- **Owner's name on the list:** only 115 of 5,000 workplaces have a Benämning. A sole proprietorship without a registered business name gets `namn`, the owner's personal name, as the salon name in Excel. Acceptable, or show something else?
 
 ## Plan (weeks 2–10)
 | Week | Dates | Goal | Friday demo |
