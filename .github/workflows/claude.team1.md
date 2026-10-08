@@ -63,7 +63,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | T1-10 | [#47](https://github.com/Kisslo/reacher/issues/47) | New-API compliance fields, estates and active status | 4 | Done |
 | J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Todo, Team 1 signs off the Adress rule |
 | T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (new API) | 5 | Todo |
-| T1-12 | [#49](https://github.com/Kisslo/reacher/issues/49) | `financial_fact` table, source shape and fixtures | 5 | In review (D34 needs Team 2 sign-off) |
+| T1-12 | [#49](https://github.com/Kisslo/reacher/issues/49) | `financial_fact` table, source shape and fixtures | 5 | Done |
 | T1-13 | [#50](https://github.com/Kisslo/reacher/issues/50) | Parse revenue and result from annual reports (iXBRL) | 5 | Todo |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
 | T1-14 | [#51](https://github.com/Kisslo/reacher/issues/51) | Bolagsverket adapter | 6 | Blocked: Bolagsverket context |
@@ -74,7 +74,7 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 ## Team status
 *Session 2026-10-08*
 - **Done:** source contract, compliance fields, fixtures, CSV ingest, `callable_salon`, end-to-end demo, J-05, T1-09, T1-10 (#47, new-API compliance fields), T1-11 (#48: `sources.yaml`, `SourcesConfig`, `.env.example`, `api_key()`, `reacher check-sources`).
-- **In review:** T1-12 (#49): migration 007 (`financial_fact` + `latest_financial_fact`), `RawFinancial` / `FinancialSource`, `ingest_financials`, `CsvFinancialSource`, `tests/fixtures/financials.csv` loaded by `load-seed`. D34 waits for Team 2 sign-off in the PR.
+- **Done:** T1-12 (#49): migration 007 (`financial_fact` + `latest_financial_fact`), `RawFinancial` / `FinancialSource`, `ingest_financials`, `CsvFinancialSource`, `tests/fixtures/financials.csv` loaded by `load-seed`. D34 waits for Team 2 sign-off in the PR.
 - **Blocked:** T1-14 on Bolagsverket API context.
 - **Next up:** T1-06 (reads `SourcesConfig.load()` and `api_key(SCB_API_KEY)`) → T1-13 (yields `RawFinancial`).
 
