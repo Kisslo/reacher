@@ -14,6 +14,9 @@ Format i båda:
 - orgnr och phone som de står i källan. Normalisering sker vid ingest (T1-04),
   så att fixtures kan innehålla samma röra som riktig registerdata.
 - Ground truth (has_empty_chairs) finns aldrig i någon av filerna - se T1-03.
+- financials.csv (T1-12) har exakt kolumnerna i FINANCIAL_CSV_COLUMNS, en rad per
+  (orgnr, period_end, key). Samma regler som ovan, plus: value är hela kronor med
+  tecken (-45300), och value får aldrig vara tom. Saknas ett värde finns ingen rad.
 """
 
 from collections.abc import Iterator
@@ -80,4 +83,36 @@ class SalonSource(Protocol):
 
     def fetch(self) -> Iterator[RawSalon]:
         """Yield:a salonger. Får vara lat - SCB paginerar 2000 rader per anrop."""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class RawFinancial:
+    """Ett värde ur en årsredovisning, som källan levererar det (T1-12, D25).
+
+    Per företag och räkenskapsår, inte per arbetsställe. orgnr normaliseras vid
+    ingest som för salonger. Ett värde som saknas i rapporten levereras inte
+    alls: ingen RawFinancial, aldrig value=0.
+    """
+
+    orgnr: str
+    period_end: date  # räkenskapsårets slutdatum
+    key: str  # nyckeln ur bolagsverket.tag_map, t.ex. "revenue"
+    value: int  # hela kronor som rapporterat, tecknet behålls
+    source_document: str | None = None  # Bolagsverkets dokument-id
+
+
+FINANCIAL_CSV_COLUMNS: tuple[str, ...] = tuple(f.name for f in fields(RawFinancial))
+
+
+@runtime_checkable
+class FinancialSource(Protocol):
+    """Samma form som SalonSource. Vilka företag som hämtas (D25: ringbara, med
+    en juridisk form som lämnar årsredovisning) avgörs av den som skapar källan,
+    inte i fetch, så att CSV-källan och Bolagsverket-adaptern ser likadana ut."""
+
+    name: str
+
+    def fetch(self) -> Iterator[RawFinancial]:
+        """Yield:a värden. Får vara lat - en årsredovisning i taget."""
         ...

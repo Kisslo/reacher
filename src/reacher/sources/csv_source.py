@@ -1,4 +1,4 @@
-"""CSV-källan: läser salons.csv och signals.csv enligt kontraktet i base.py.
+"""CSV-källorna: läser salons.csv, signals.csv och financials.csv enligt kontraktet i base.py.
 
 Normaliserar ingenting. Orgnr och telefon skickas vidare som de står i filen,
 så att ingest städar CSV och SCB på samma sätt.
@@ -9,7 +9,14 @@ from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
 
-from reacher.sources.base import CSV_COLUMNS, SIGNAL_CSV_COLUMNS, RawSalon, RawSignal
+from reacher.sources.base import (
+    CSV_COLUMNS,
+    FINANCIAL_CSV_COLUMNS,
+    SIGNAL_CSV_COLUMNS,
+    RawFinancial,
+    RawSalon,
+    RawSignal,
+)
 
 Row = dict[str, str | None]
 
@@ -59,4 +66,33 @@ class CsvSource:
             yield RawSalon(
                 **{**row, "registered_at": _date(row["registered_at"])},
                 signals=tuple(signals.get((row["orgnr"], row["cfar"]), ())),
+            )
+
+
+class CsvFinancialSource:
+    """financials.csv (T1-12). Påhittade värden, samma form som Bolagsverket-adaptern
+    (T1-14) kommer att leverera."""
+
+    name = "csv-financials"
+
+    def __init__(self, directory: Path) -> None:
+        self.directory = directory
+
+    def fetch(self) -> Iterator[RawFinancial]:
+        rows = _read(self.directory / "financials.csv", FINANCIAL_CSV_COLUMNS)
+        # Hela filen kontrolleras innan något yield:as, som för signals.csv.
+        # Rad n = radnummer i filen (rubriken är rad 1).
+        for n, row in enumerate(rows, start=2):
+            if row["value"] is None or row["period_end"] is None:
+                # Saknat värde = ingen rad (base.py). En rad med tom value är
+                # ett fel i fixturen, inte ett sätt att skriva "saknas".
+                raise ValueError(f"financials.csv rad {n}: value och period_end krävs")
+        for row in rows:
+            yield RawFinancial(
+                orgnr=row["orgnr"] or "",
+                period_end=date.fromisoformat(row["period_end"]),
+                key=row["key"] or "",
+                # int(), inte float(): "1234567.0" och "1 234 567" ska krascha här.
+                value=int(row["value"]),
+                source_document=row["source_document"],
             )

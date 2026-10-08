@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from reacher.sources.base import SalonSource
+from reacher.sources.base import FinancialSource, SalonSource
 
 if TYPE_CHECKING:
     from reacher.report import GroupStats
@@ -49,12 +49,31 @@ def _run_ingest(source: SalonSource, db: Path) -> None:
     )
 
 
+def _run_financial_ingest(source: FinancialSource, db: Path) -> None:
+    """Som _run_ingest, för financial_fact (T1-12)."""
+    from reacher.db import connect, migrate
+    from reacher.ingest import ingest_financials
+
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
+    conn = connect(db)
+    try:
+        migrate(conn)
+        summary = ingest_financials(conn, source.fetch())
+    finally:
+        conn.close()
+    typer.echo(
+        f"{db} ({source.name}): {summary.inserted} nya, {summary.updated} ändrade, "
+        f"{summary.unchanged} oförändrade, {summary.rejected} avvisade finansiella fakta"
+    )
+
+
 @app.command("load-seed")
 def load_seed(db: Path = DEFAULT_DB) -> None:
-    """Läs in test-salongerna från tests/fixtures/."""
-    from reacher.sources.csv_source import CsvSource
+    """Läs in test-salongerna och deras finansiella fakta från tests/fixtures/."""
+    from reacher.sources.csv_source import CsvFinancialSource, CsvSource
 
     _run_ingest(CsvSource(FIXTURES_DIR), db)
+    _run_financial_ingest(CsvFinancialSource(FIXTURES_DIR), db)
 
 
 @app.command()

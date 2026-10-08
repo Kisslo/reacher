@@ -9,6 +9,8 @@ av testerna för `callable_salon` (T1-05) och av Team 2 tills riktig data finns.
 | `signals.csv` | Bara rubrikrad. Evidensbaserade signaler är parkerade (D4). |
 | `ground_truth.csv` | `has_empty_chairs` per normaliserat orgnr + cfar. **Läses BARA av simuleringen (T2-05), aldrig av ingest eller poängsättning.** |
 | `scb/` | Inspelade, anonymiserade svar från SCB:s nya API (T1-09). Beskrivs i `docs/scb-fields.md`. Läses av adapter-testerna (T1-06). |
+| `financials.csv` | Påhittade årsredovisningsvärden (T1-12), kolumnerna i `FINANCIAL_CSV_COLUMNS`. En rad per (orgnr, räkenskapsårets slut, key). Läses av `load-seed` in i `financial_fact`. |
+
 
 ## Regler
 
@@ -105,3 +107,23 @@ ringbara salonger med varierade signaler.
 | 79 | Kedjan Klipp Nedlagd | Kedjan Klipps 4:e cfar: verksamt företag men aeStat 9 -> exkluderas (D33) |
 | 80 | Aldrig Öppnade Salongen | aeStat 0 (aldrig verksam) -> exkluderas (D33) |
 | 81 | Arbetsställe Utan Status | aeStat tom -> exkluderas (fail closed) |
+
+
+## Finansiella fakta (T1-12)
+
+`financials.csv` har 36 rader: 35 giltiga fakta för 8 företag och 1 avvisad. Värden i
+hela kronor med tecken. Saknas ett värde finns ingen rad (aldrig 0 eller tom cell).
+Dokument-id:n (`FIKTIV-...`) är påhittade; en rapport täcker ofta två år.
+
+| Företag | orgnr i filen | Varför det finns |
+|---|---|---|
+| Kedjan Klipp | `559000-1011` | 4 räkenskapsår: `latest_financial_fact` visar bara de 3 senaste. Ett företag, fyra salonger, en uppsättning fakta |
+| Salong Dubbelgångaren | `165560002023` | FÖRLUST senaste året (-87 400). 16-prefix |
+| Hårateljén | `556000-3039` | 2023 saknas: 2024 och 2022 finns, rang 1 och 2 |
+| Frisyr & Form | `5560005083` | Brutet räkenskapsår (slutar 30 april), visas som "2024/25" i Excel (D27) |
+| Brynboden | `5560009531` | Omsättning 2024 men inget resultat 2024: ingen net_result-rad med rang 1 |
+| Franssalongen | `5590009550` | Ett enda år (2025), förlust och låg omsättning |
+| Nackeateljén | `5590009576` | Resultat exakt 0: ett värde, ingen förlust |
+| Saxateljén | `5560009606` | Omsättning exakt 500 000 (nära Team 2:s startantagande för `low_revenue`), inget dokument-id |
+| Felaktiga AB | `5560004046` | OGILTIGT orgnr -> avvisas |
+| Kamgården och övriga | — | AB utan årsredovisning: inga rader. Enskilda firmor har aldrig några |
