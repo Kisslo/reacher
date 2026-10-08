@@ -8,7 +8,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 ## What we own
 | Area | Where |
 |---|---|
-| Source contract (`RawSalon`, `RawSignal`, `SalonSource`; `RawFinancial` from T1-12) | `src/reacher/sources/base.py` |
+| Source contract (`RawSalon`, `RawSignal`, `SalonSource`, `RawFinancial`, `FinancialSource`) | `src/reacher/sources/base.py` |
 | Source adapters: CSV, SCB new API (D24), Bolagsverket (D25) | `src/reacher/sources/` |
 | Source config: SNI codes, municipalities, annual-report legal forms, iXBRL tag map | `sources.yaml` + `src/reacher/sources/config.py` (T1-11) |
 | Local API keys: names only, values in each developer's `.env` | `.env.example`; read only through `api_key()` (T1-11) |
@@ -16,12 +16,13 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | Fixtures + hidden ground truth; anonymised recorded API responses | `tests/fixtures/` |
 | Migrations that touch `salon`, `contact`, `signal`, `financial_fact` | `src/reacher/migrations/` |
 | Exclusions: the `callable_salon` view | a migration + its tests |
+| Team 2's financial view `latest_financial_fact` (3 latest fiscal years per orgnr, D34) | migration 007 + `tests/test_financials.py` |
 | SCB field documentation | `docs/scb-fields.md` (T1-09) |
 
 ## What we hand over and what we consume
 - **We deliver (Format 1):** `salon`, `contact` and `financial_fact` rows with raw facts only. We never compute points or thresholds (D6). Whether a salon is "loss-making" or has "low revenue" is Team 2's call (D26).
 - **We consume (Format 2):** the `suppression` table that Team 2 writes. We don't write `opt_out` or `existing_customer`. We read them in `callable_salon`.
-- **Team 2 is waiting on us for:** T1-12 (`financial_fact` + fixtures) for T2-09. The `anstKl` answer is in `docs/scb-fields.md` (T1-09).
+- **Team 2 is waiting on us for:** nothing right now. T1-12 delivers `financial_fact`, `latest_financial_fact` and `financials.csv` for T2-09 and J-06. The `anstKl` answer is in `docs/scb-fields.md` (T1-09).
 
 ## Working rules for Team 1
 - **Normalise at ingest, not in the source.** Sources yield data exactly as the register delivers it. That way every source gets the same cleaning, and fixtures can be as messy as reality.
@@ -34,7 +35,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 - **The compliance view lands before the adapter.** T1-10 merges before or together with T1-06. Otherwise every SCB salon is excluded.
 - **Address and municipality come from the workplace (D19).** In the new API, `postAdress` and `kommunSate` belong to the legal unit; for a sole proprietorship that is the owner's home. Since Adress is now in the Excel file (D27), this is a privacy rule, not just a data-quality rule.
 - **SCB first, Bolagsverket second (D25).** Only fetch annual reports for companies that pass `callable_salon` and have a legal form that files annual reports. Never re-download a fiscal year already in `financial_fact`.
-- **Financial facts as reported.** Whole SEK, sign kept. A missing value is no row, never 0.
+- **Financial facts as reported.** Whole SEK, sign kept. A missing value is no row, never 0. `ingest_financials` rejects a missing or non-integer value instead of storing it, and the table's `typeof` check is the last line of defence. If you change `bolagsverket.years`, change the view's `<= 3` in a new migration too (a test checks they match).
 - **Config over code (D29).** SNI codes, municipalities and iXBRL tag names live in `sources.yaml`. Adding a municipality or a financial field should not need a code change.
 - **API keys stay local (D24).** In `.env` (gitignored), never in code, config, tests, logs, GitHub secrets, issues or a pasted error message. `.env.example` lists the names only, and a test fails if it gets a value. Read keys only through `api_key()` in `sources/config.py`: it returns a `SecretStr`, which prints as `**********`. Call `.get_secret_value()` in one place only, where the request header is built, and never put a key in a URL. Check your setup with `uv run --env-file .env reacher check-sources`. If a key is ever committed, rotate it: deleting the commit is not enough.
 - **Quote every code in YAML.** Codes in `sources.yaml` are text, as in the database. Unquoted, `0114` is read as the octal number 76. The config refuses numbers, so the mistake fails loudly.
@@ -62,7 +63,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | T1-10 | [#47](https://github.com/Kisslo/reacher/issues/47) | New-API compliance fields, estates and active status | 4 | Done |
 | J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Todo, Team 1 signs off the Adress rule |
 | T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (new API) | 5 | Todo |
-| T1-12 | [#49](https://github.com/Kisslo/reacher/issues/49) | `financial_fact` table, source shape and fixtures | 5 | Todo, **Team 2 waits on this** |
+| T1-12 | [#49](https://github.com/Kisslo/reacher/issues/49) | `financial_fact` table, source shape and fixtures | 5 | In review (D34 needs Team 2 sign-off) |
 | T1-13 | [#50](https://github.com/Kisslo/reacher/issues/50) | Parse revenue and result from annual reports (iXBRL) | 5 | Todo |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
 | T1-14 | [#51](https://github.com/Kisslo/reacher/issues/51) | Bolagsverket adapter | 6 | Blocked: Bolagsverket context |
@@ -73,8 +74,9 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 ## Team status
 *Session 2026-10-08*
 - **Done:** source contract, compliance fields, fixtures, CSV ingest, `callable_salon`, end-to-end demo, J-05, T1-09, T1-10 (#47, new-API compliance fields), T1-11 (#48: `sources.yaml`, `SourcesConfig`, `.env.example`, `api_key()`, `reacher check-sources`).
+- **In review:** T1-12 (#49): migration 007 (`financial_fact` + `latest_financial_fact`), `RawFinancial` / `FinancialSource`, `ingest_financials`, `CsvFinancialSource`, `tests/fixtures/financials.csv` loaded by `load-seed`. D34 waits for Team 2 sign-off in the PR.
 - **Blocked:** T1-14 on Bolagsverket API context.
-- **Next up:** T1-06 (reads `SourcesConfig.load()` and `api_key(SCB_API_KEY)`) → T1-12 → T1-13.
+- **Next up:** T1-06 (reads `SourcesConfig.load()` and `api_key(SCB_API_KEY)`) → T1-13 (yields `RawFinancial`).
 
 ## Team 1 open questions
 See the shared open questions in `claude.md`. T1-09 answered the workplace endpoint, the `anstKl` scale, SCB Omsättning and the JSON types (`docs/scb-fields.md`). New from T1-09: workplace status (`aeStat`), Bolagsverket status (`bolStat`), phone coverage and the owner's name, see the shared open questions.

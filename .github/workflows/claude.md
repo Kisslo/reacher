@@ -32,7 +32,7 @@ The two teams connect through one agreed data format: the filtered salon list th
 ### Format 1: Salon list (Team 1 → Team 2).
 The handoff is the SQLite database, not a separate file. Team 1 writes `salon`, `contact` and `financial_fact` (and later `signal`), and Team 2 reads them. Team 2's mock data is fixture CSVs loaded into the same tables with `reacher load-seed`, so mock and real data can't drift apart.
 
-At the source boundary, the shape is `RawSalon` / `RawSignal` in `src/reacher/sources/base.py` (merged in PR #6). Financial facts from Bolagsverket get their own shape, `RawFinancial` (T1-12), because they are per company and fiscal year, not per workplace.
+At the source boundary, the shape is `RawSalon` / `RawSignal` in `src/reacher/sources/base.py` (merged in PR #6). Financial facts from Bolagsverket get their own shape, `RawFinancial` + `FinancialSource` (T1-12), because they are per company and fiscal year, not per workplace.
 
 | Draft field | Where it lives |
 |---|---|
@@ -42,7 +42,7 @@ At the source boundary, the shape is `RawSalon` / `RawSignal` in `src/reacher/so
 | `sni_code`, `registration_date`, `employee_size_class` | `salon.sni`, `salon.registered_at`, `salon.employee_class` |
 | `signals[]` (type, evidence, source_url) | `signal.key`, `signal.evidence`, `signal.source_url` |
 | *(not in draft)* | `salon.cfar` (workplace number: one company can have several salons), `signal.observed_at`, `contact.confidence` |
-| *(new, D25)* revenue and net result per fiscal year | `financial_fact` (`orgnr`, `period_end`, `key`, `value`, `source_document`, `fetched_at`): one row per company, fiscal year and key, up to the 3 latest years |
+| *(new, D25, D34)* revenue and net result per fiscal year | `financial_fact` (`orgnr`, `period_end`, `key`, `value` INTEGER whole SEK, `source_document`, `fetched_at`): one row per company, fiscal year and key (migration 007). Team 2 reads the view `latest_financial_fact`: the 3 latest fiscal years per orgnr, `fiscal_year_rank` 1 = newest |
 
 Rules:
 - Team 1 delivers raw facts only. Team 2 decides the thresholds and points, so tuning the scoring never requires changes to Team 1's code.
@@ -63,7 +63,7 @@ Rules:
   | `ad_block_type` / `workplace_ad_block_type` | reklamSparrTyp (company / workplace) | `1` accepts ads · `2` opted out |
   | `phone_block_type` / `workplace_phone_block_type` | telefonSparrTyp (company / workplace) | `1` no block · `2` telemarketing block · `3` NIX-Telefon |
 - Phone and website come from SCB (D9). Email is **not stored** until there is a use for it (data minimisation). *Assumption.*
-- **Financial facts (D25, D26):** Team 1 delivers Nettoomsättning (`revenue`) and Årets resultat (`net_result`) exactly as reported (whole SEK, sign kept). Team 2 derives `loss_making` / `low_revenue` and owns the thresholds. No annual report (e.g. a sole proprietorship) means no rows, never 0.
+- **Financial facts (D25, D26):** Team 1 delivers Nettoomsättning (`revenue`) and Årets resultat (`net_result`) exactly as reported (whole SEK, sign kept). Team 2 derives `loss_making` / `low_revenue` and owns the thresholds. No annual report (e.g. a sole proprietorship) means no rows, never 0. Team 2 reads them through `latest_financial_fact` joined on orgnr, never `financial_fact` directly. Ranks are per company, not per key: if the newest report lacks `net_result`, there is no `net_result` row with rank 1 (D34). Fixtures: `tests/fixtures/financials.csv`, loaded by `load-seed`.
 - **New SCB API (D24, D28, D31):** the old two-digit Reklam code is split into `reklamSparrTyp` (1 accepts ads, 2 opted out) and `telefonSparrTyp` (1 no block, 2 telemarketing block, 3 NIX-Telefon), delivered as JSON numbers. `ftgStat` (0 never active, 1 active, 9 no longer active) is delivered as a string. The source converts all codes with `str()` and nothing else. Since T1-10 the old ad_status / workplace_ad_status columns are gone (D32).
 - **Address and municipality come from the workplace (D19).** In the new API, `postAdress` and `kommunSate` belong to the legal unit; for a sole proprietorship that is the owner's home. They are never used for Adress/Ort in Excel or for the municipality filter.
 
@@ -176,6 +176,7 @@ You don't remember previous conversations. At the end of each working session, w
 | D31 | 2026-10-06 | **Decided.** Only active companies are callable: SCB `ftgStat` is stored raw as `salon.company_status` (TEXT) and `callable_salon` requires `'1'`. `0` (never active), `9` (no longer active), NULL and unknown are excluded (fail closed). Company-level variable. |
 | D32 | 2026-10-07 | **Decided.** The old two-digit Reklam columns `ad_status` and `workplace_ad_status` (D18, D20) are dropped in migration 006 and replaced by `ad_block_type`, `phone_block_type`, `workplace_ad_block_type`, `workplace_phone_block_type` and `company_status` (D28, D31). The fixtures use the new fields. Reason: the new API has no such code, and keeping both would mean two rules for one block, or an OR that can fail open. Format 1 change. |
 | D33 | 2026-10-07 | **Decided.** Only active workplaces are callable: SCB `aeStat` is stored raw as `salon.workplace_status` (TEXT) and `callable_salon` requires `'1'`. `0` (never active), `9` (no longer active), NULL and unknown are excluded (fail closed). Complements D31, which only checks the company: an active company can have a closed salon. Workplace-level variable (AE partial). Format 1 change. |
+| D34 | 2026-10-08 | **Pending Team 2 sign-off in the T1-12 PR.** `financial_fact` (migration 007) stores `value` as INTEGER with `CHECK (typeof(value) = 'integer')`, not REAL as #49 proposed: D25 says whole SEK, and the check stops `1234567.5` or `'1 234 567'` from slipping in. No foreign key to `salon` (facts are per company; `salon.orgnr` isn't unique). Team 2 reads the view `latest_financial_fact`, which keeps the 3 latest fiscal years **per orgnr** (`DENSE_RANK` on `period_end`), not per (orgnr, key), so Omsättning and Resultat show the same years and `loss_making` never uses an older year than the newest report. The 3 mirrors `bolagsverket.years` in `sources.yaml`, and a test fails if they differ. Re-ingesting an unchanged value leaves the row (and `fetched_at`) untouched. Format 1 change. |
 
 ---
 
@@ -297,6 +298,7 @@ The list works when salons in the **top 20** respond "Interested" or "Registered
 - ~~**Workplace status (T1-09 → T1-10).**~~ Resolved as D33: `aeStat` stored as `workplace_status`, callable only with `1`.
 - **Bolagsverket status (`bolStat`, konkurs/likvidation):** available on the legal unit. Proposal: no rule in the MVP; revisit after the first real list.
 - **Phone coverage (T1-09 → T1-06, J-04):** in the T1-09 sample, `tel` was empty on both the company and the workplace for both companies. If most salons have no phone in SCB, D9 doesn't hold and the first real list (J-04) has nothing to call. T1-06 measures the share with a phone.
+- **Restated comparison years (T1-12 → T1-13, T1-14):** an annual report usually repeats the previous year as comparison, and that figure can differ from the original report. Today the last value ingested wins and `source_document` shows which report it came from. Proposal: prefer the newest report, since it's the most recent statement. *Assumption.*
 - **Owner's name on the list:** only 115 of 5,000 workplaces have a Benämning. A sole proprietorship without a registered business name gets `namn`, the owner's personal name, as the salon name in Excel. Acceptable, or show something else?
 
 ## Plan (weeks 2–10)

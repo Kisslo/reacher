@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from reacher.normalize import normalize_orgnr as orgnr_key
-from reacher.sources.base import CSV_COLUMNS, SIGNAL_CSV_COLUMNS
+from reacher.sources.base import CSV_COLUMNS, FINANCIAL_CSV_COLUMNS, SIGNAL_CSV_COLUMNS
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -38,6 +38,7 @@ def test_headers_follow_the_source_contract():
     assert header("salons.csv") == CSV_COLUMNS
     assert header("signals.csv") == SIGNAL_CSV_COLUMNS
     assert header("ground_truth.csv") == ("orgnr", "cfar", "has_empty_chairs")
+    assert header("financials.csv") == FINANCIAL_CSV_COLUMNS
 
 
 def test_about_sixty_salons(salons):
@@ -231,3 +232,66 @@ def test_ground_truth_covers_exactly_the_valid_salons(salons):
 def test_ground_truth_is_boolean_and_not_trivial():
     values = [r["has_empty_chairs"] for r in read("ground_truth.csv")]
     assert set(values) == {"0", "1"}
+
+
+# --- Finansiella fakta (T1-12, #49) -----------------------------------------
+
+
+@pytest.fixture(scope="module")
+def financials() -> list[dict[str, str]]:
+    return read("financials.csv")
+
+
+def years_by_company(financials) -> dict[str, set[str]]:
+    years: dict[str, set[str]] = {}
+    for r in financials:
+        if key := orgnr_key(r["orgnr"]):
+            years.setdefault(key, set()).add(r["period_end"])
+    return years
+
+
+def test_financial_values_are_whole_kronor(financials):
+    for r in financials:
+        assert r["value"].lstrip("-").isdigit(), r
+        assert len(r["period_end"]) == 10 and r["period_end"][4] == r["period_end"][7] == "-"
+
+
+def test_every_financial_company_is_a_salon_in_the_fixtures(salons, financials):
+    """Annars kan Team 2 inte testa joinen mot callable_salon."""
+    salon_orgnrs = {orgnr_key(r["orgnr"]) for r in salons}
+    assert {orgnr_key(r["orgnr"]) for r in financials} <= salon_orgnrs
+
+
+def test_financial_edge_cases(salons, financials):
+    years = years_by_company(financials)
+    latest = {
+        orgnr_key(r["orgnr"]): r
+        for r in sorted(financials, key=lambda r: r["period_end"])
+        if r["key"] == "net_result"
+    }
+    assert any(int(r["value"]) < 0 for r in latest.values()), "förlust senaste året"
+    assert any(int(r["value"]) == 0 for r in financials), "nollresultat (inte förlust)"
+    assert any(len(y) > 3 for y in years.values()), "fler år än vyn visar"
+    assert any(len(y) == 1 for y in years.values()), "bara ett år"
+    assert any(int(max(y)[:4]) - int(min(y)[:4]) >= len(y) for y in years.values()), (
+        "ett år saknas mitt i"
+    )
+    assert any(not pe.endswith("-12-31") for y in years.values() for pe in y), "brutet år"
+    assert any(not r["source_document"] for r in financials), "dokument-id saknas"
+    assert any(r["orgnr"] and orgnr_key(r["orgnr"]) is None for r in financials), "ogiltigt orgnr"
+
+
+def test_a_year_with_revenue_but_no_net_result(financials):
+    keys: dict[tuple[str, str], set[str]] = {}
+    for r in financials:
+        keys.setdefault((r["orgnr"], r["period_end"]), set()).add(r["key"])
+    assert {"revenue"} in keys.values()
+
+
+def test_a_callable_company_without_reports(salons, financials):
+    """D25: ingen årsredovisning = inga rader. Team 2 måste klara ett AB utan fakta."""
+    with_facts = {orgnr_key(r["orgnr"]) for r in financials}
+    assert any(
+        r["legal_form"] == "49" and no_block(r) and orgnr_key(r["orgnr"]) not in with_facts
+        for r in salons
+    )
