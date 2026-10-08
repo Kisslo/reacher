@@ -10,6 +10,22 @@ uv sync
 uv run pytest -q
 ```
 
+## Lokala API-nycklar
+
+Riktiga källor (SCB, senare Bolagsverket) kräver nycklar. De ligger bara i din egen
+`.env`, aldrig i git, config eller loggar (D24):
+
+```sh
+cp .env.example .env                 # bash
+Copy-Item .env.example .env          # PowerShell
+# fyll i nycklarna i .env, kör sedan:
+uv run --env-file .env reacher check-sources
+```
+
+`check-sources` läser `sources.yaml` och visar vilka nycklar som är satta, aldrig
+värdena. Den anropar inga API:er. Vad som hämtas (SNI-koder, kommuner) ändras i
+`sources.yaml`, inte i koden.
+
 ## Fredagsdemo (J-03)
 
 Hela loopen på testdatan i `tests/fixtures/`: bygg listor, simulera samtal, läs

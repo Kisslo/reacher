@@ -78,6 +78,29 @@ def ingest(
         raise typer.BadParameter(f"okänd källa: {source}", param_hint="--source")
 
 
+@app.command("check-sources")
+def check_sources(config: Path = Path("sources.yaml")) -> None:
+    """Kontrollera sources.yaml och att API-nycklarna finns. Inga nätverksanrop."""
+    from reacher.sources.config import API_KEYS, MissingApiKeyError, SourcesConfig, api_key
+
+    cfg = SourcesConfig.load(config)
+    typer.echo(
+        f"{config}: SNI {', '.join(cfg.scb.sni_codes)}, "
+        f"kommuner {', '.join(cfg.scb.municipalities)}"
+    )
+    missing = 0
+    for name in API_KEYS:
+        try:
+            api_key(name)
+        except MissingApiKeyError as error:
+            typer.echo(str(error), err=True)
+            missing += 1
+        else:
+            typer.echo(f"{name}: satt")  # aldrig värdet, inte ens en del av det (D24)
+    if missing:
+        raise typer.Exit(code=1)
+
+
 @app.command("build-lists")
 def build_lists(week: str, sellers: str, db: Path = DEFAULT_DB) -> None:
     """Poängsätt, filtrera, rangordna och skriv en xlsx per säljare."""
