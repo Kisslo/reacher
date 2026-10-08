@@ -84,9 +84,10 @@ Adaptern avgör slutet bara på `hasMore`, aldrig på `nextCursorId`.
 | `ftax_status` | `fSkattStat` | JE full | `salon.ftax_status` | |
 | `vat_status` | `momsStat` | JE full | `salon.vat_status` | |
 | `employer_status` | `arbGivStat` | JE full | `salon.employer_status` | |
-| `ad_status` | finns inte | | `salon.ad_status` | Se "Flaggat" |
-| `workplace_ad_status` | finns inte | | `salon.workplace_ad_status` | Se "Flaggat" |
+| `ad_status` | finns inte | | `salon.ad_status` | Borttagen i T1-10 (D32) |
+| `workplace_ad_status` | finns inte | | `salon.workplace_ad_status` | Borttagen i T1-10 (D32) |
 | *ny i T1-10* | `ftgStat` | JE full | `company_status` | D31 |
+| *ny i T1-10* | `aeStat` | AE partial | `workplace_status` | D33. Sträng i partial, tal i full: `str()` |
 | *ny i T1-10* | `reklamSparrTyp` | JE full | `ad_block_type` | D28 |
 | *ny i T1-10* | `telefonSparrTyp` | JE full | `phone_block_type` | D28 |
 | *ny i T1-10* | `reklamSparrTyp` | AE partial | `workplace_ad_block_type` | D28. Spärrarna finns på **både** företag och arbetsställe |
@@ -132,13 +133,13 @@ Det finns också ett filter, `/juridiskaenheter/omsattningsklass/{kod}`. Variabe
 ## Flaggat: fält vi använder i dag som saknas i nya API:t
 
 1. **Webbadress.** Varken kontraktet eller Variabelbeskrivningen har något webbfält, men D9 säger att API:t har det. Från SCB blir `website` alltid `None`, och då skapar ingest ingen `contact`-rad. Ingen kodändring behövs.
-2. **Den tvåsiffriga Reklam-koden** (`ad_status`, `workplace_ad_status`, koderna 11–23 i D20) finns inte. Den är ersatt av `reklamSparrTyp` + `telefonSparrTyp` på båda nivåerna (D28). Dagens vy kräver `ad_status IN ('11')`, så en SCB-salong utan de gamla kolumnerna utesluts alltid. T1-10 måste landa före eller tillsammans med T1-06, och bestämmer vad som händer med de gamla kolumnerna.
+2. **Den tvåsiffriga Reklam-koden** (`ad_status`, `workplace_ad_status`, koderna 11–23 i D20) finns inte. Den är ersatt av `reklamSparrTyp` + `telefonSparrTyp` på båda nivåerna (D28). Dagens vy kräver `ad_status IN ('11')`, så en SCB-salong utan de gamla kolumnerna utesluts alltid. T1-10 måste landa före eller tillsammans med T1-06, och bestämmer vad som händer med de gamla kolumnerna. **Löst i T1-10:** kolumnerna är borttagna (migration 006, D32).
 3. **`area`** är redan borttagen (D19). Inget att göra.
 4. **Telefonnummer kan saknas helt.** I stickprovet (två företag och deras salonger) var `tel` tomt på både AE och JE. Gäller det de flesta salonger har vi inget nummer att ringa, och D9 (telefon från SCB) håller inte. T1-06 mäter andelen med telefon före J-04.
 
 ## Öppna frågor från T1-09 (inte beslutade)
 
-- **Arbetsställets status (`aeStat`).** D31 tittar bara på företaget, så en nedlagd salong (`aeStat` `9`) hos ett verksamt företag släpps igenom. Förslag: lagra `aeStat` rått och kräva `'1'` i `callable_salon`, som D31. Beslut i T1-10.
+- **Arbetsställets status (`aeStat`).** D31 tittar bara på företaget, så en nedlagd salong (`aeStat` `9`) hos ett verksamt företag släpps igenom. **Beslutat i T1-10 (D33):** lagras rått som `workplace_status`, och `callable_salon` kräver `'1'`.
 - **Konkurs och likvidation (`bolStat`).** Förslag: ingen regel i MVP:n, eftersom `ftgStat` redan fångar företag som inte längre är verksamma. Ta upp igen efter första riktiga listan.
 - **`registered_at`:** `regDat` (företaget registrerades) eller AE `startDat` (salongen blev verksam)? Redan en öppen fråga för Team 2. Mappningen ovan behåller dagens betydelse.
 - **Ägarens namn i Excel.** För en enskild firma utan `ben` och `foretagsnamn` blir `name` ägarens personnamn. *Svar:* 4 885 av 5 000 arbetsställen på första sidan saknar `ben` (tomt eller ett mellanslag). Den enskilda firman i stickprovet hade inget `foretagsnamn`, så den skulle visas med ägarens namn.

@@ -4,7 +4,7 @@ Regler:
 - Ogiltigt eller saknat orgnr -> avvisas. Utan orgnr går salongen inte att spärra.
 - Ogiltigt telefonnummer -> salongen sparas, numret gör det inte.
 - Alla fält skrivs över, även med NULL. Säger SCB inte längre något om
-  ad_status ska den gamla koden inte ligga kvar: då failar vyn öppet.
+  ad_block_type ska den gamla koden inte ligga kvar: då failar vyn öppet.
 - E-post sparas aldrig (dataminimering, Format 1). RawSalon har inget sådant fält.
 - Signaler skrivs inte: signal-tabellen används inte i MVP:n (D4).
 """
@@ -35,8 +35,12 @@ SALON_FIELDS = (
     "ftax_status",
     "vat_status",
     "employer_status",
-    "ad_status",
-    "workplace_ad_status",
+    "company_status",
+    "workplace_status",
+    "ad_block_type",
+    "phone_block_type",
+    "workplace_ad_block_type",
+    "workplace_phone_block_type",
 )
 
 # Byggs av konstanta kolumnnamn, aldrig av data. Värdena går som parametrar.

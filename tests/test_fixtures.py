@@ -128,20 +128,52 @@ def test_sole_proprietorship_combination_exists(salons, combo):
     assert combo in found
 
 
-@pytest.mark.parametrize("code", ["11", "12", "13", "21", "22", "23", ""])
-def test_every_reklam_code_on_company(salons, code):
-    assert code in column(salons, "ad_status")
+BLOCK_FIELDS = (
+    "ad_block_type",
+    "phone_block_type",
+    "workplace_ad_block_type",
+    "workplace_phone_block_type",
+)
+
+
+def no_block(r) -> bool:
+    return all(r[f] == "1" for f in BLOCK_FIELDS)
+
+
+@pytest.mark.parametrize(
+    ("field", "code"),
+    [
+        ("ad_block_type", "2"),
+        ("ad_block_type", ""),
+        ("ad_block_type", "7"),  # okänd kod
+        ("phone_block_type", "2"),
+        ("phone_block_type", "3"),  # NIX-Telefon
+        ("phone_block_type", ""),
+        ("company_status", "0"),
+        ("company_status", "9"),
+        ("company_status", ""),
+        ("workplace_status", "0"),
+        ("workplace_status", "9"),
+        ("workplace_status", ""),
+    ],
+)
+def test_every_company_code(salons, field, code):
+    assert code in column(salons, field)
 
 
 def test_only_workplace_blocks(salons):
+    """Företaget har ingen spärr men arbetsstället har, en gång per fält."""
+    company_ok = [r for r in salons if r["ad_block_type"] == r["phone_block_type"] == "1"]
+    assert any(r["workplace_ad_block_type"] == "2" for r in company_ok)
+    assert any(r["workplace_phone_block_type"] == "3" for r in company_ok)
     assert any(
-        r["ad_status"] == "11" and r["workplace_ad_status"] not in ("11", "") for r in salons
+        r["workplace_ad_block_type"] == r["workplace_phone_block_type"] == "" for r in company_ok
     )
 
 
 def test_blocked_salon_that_would_score_high(salons):
     assert any(
-        r["ad_status"] != "11" and r["employee_class"] == "2" and r["registered_at"] >= "2024-09-28"
+        not no_block(r) and r["employee_class"] == "2" and r["registered_at"] >= "2024-09-28"
         for r in salons
     )
 
@@ -150,9 +182,28 @@ def test_legal_person_with_unknown_status_and_no_ad_block(salons):
     assert any(
         r["legal_form"] == "49"
         and r["ftax_status"] == r["vat_status"] == r["employer_status"] == ""
-        and r["ad_status"] == r["workplace_ad_status"] == "11"
+        and no_block(r)
         for r in salons
     )
+
+
+def test_closed_workplace_of_an_active_company(salons):
+    """D33: företaget är verksamt men just den här salongen är nedlagd."""
+    assert any(r["company_status"] == "1" and r["workplace_status"] == "9" for r in salons)
+
+
+def test_estate_with_every_registration(salons):
+    """D30: dödsboet ska uteslutas fast det har F-skatt, moms och arbetsgivare."""
+    assert any(
+        r["legal_form"] == "91"
+        and r["ftax_status"] == r["vat_status"] == r["employer_status"] == "1"
+        for r in salons
+    )
+
+
+def test_missing_legal_form_with_ftax(salons):
+    """D30 får inte råka utesluta en salong utan juridisk form (D22 avgör den)."""
+    assert any(r["legal_form"] == "" and r["ftax_status"] == "1" and no_block(r) for r in salons)
 
 
 def test_registration_dates_on_both_sides_of_24_months(salons):
