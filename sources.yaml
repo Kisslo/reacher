@@ -1,0 +1,24 @@
+# Vad källorna hämtar (D29). Ändras här, inte i koden. Läses av SCB-adaptern
+# (T1-06) och Bolagsverket-adaptern (T1-14). Kontrollera med: reacher check-sources
+#
+# Inga nycklar här, de ligger i .env (D24). Alla koder inom citattecken: de är
+# text i databasen, och YAML läser okvoterat 0114 som det oktala talet 76.
+scb:
+  # SNI 2025 som API:t skriver dem: 96210 frisörer och barberare, 96220 skönhetsvård.
+  sni_codes: ["96210", "96220"]
+  # Arbetsställets kommun (belagenhetsadress.kommun), aldrig kommunSate (D19).
+  # Börja med en (D15). Stockholms län: 0114-0192, 0180 = Stockholm.
+  municipalities: ["0180"]
+
+bolagsverket:
+  # Juridiska former som får sina årsredovisningar hämtade (D25). 49 = aktiebolag.
+  # Antagande: fler former (t.ex. 31 HB/KB) läggs till om T1-14 visar att de lämnar
+  # årsredovisningar. 10 (enskild firma) lämnar aldrig någon.
+  annual_report_legal_forms: ["49"]
+  # Antal senaste räkenskapsår (D25, D27).
+  years: 3
+  # iXBRL-tagg -> key i financial_fact. Nytt fält = ny rad här, ingen migration.
+  # Taggnamnen kontrolleras mot en riktig årsredovisning i T1-13.
+  tag_map:
+    "se-gen-base:Nettoomsattning": revenue
+    "se-gen-base:AretsResultat": net_result

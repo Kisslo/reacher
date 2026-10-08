@@ -10,7 +10,8 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 |---|---|
 | Source contract (`RawSalon`, `RawSignal`, `SalonSource`; `RawFinancial` from T1-12) | `src/reacher/sources/base.py` |
 | Source adapters: CSV, SCB new API (D24), Bolagsverket (D25) | `src/reacher/sources/` |
-| Source config: SNI codes, municipalities, annual-report legal forms, iXBRL tag map | `sources.yaml` (T1-11) |
+| Source config: SNI codes, municipalities, annual-report legal forms, iXBRL tag map | `sources.yaml` + `src/reacher/sources/config.py` (T1-11) |
+| Local API keys: names only, values in each developer's `.env` | `.env.example`; read only through `api_key()` (T1-11) |
 | Ingest: normalisation + upsert into `salon` / `contact` / `financial_fact` | `reacher ingest`, `reacher load-seed`, `reacher fetch-financials` (T1-14) |
 | Fixtures + hidden ground truth; anonymised recorded API responses | `tests/fixtures/` |
 | Migrations that touch `salon`, `contact`, `signal`, `financial_fact` | `src/reacher/migrations/` |
@@ -35,7 +36,8 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 - **SCB first, Bolagsverket second (D25).** Only fetch annual reports for companies that pass `callable_salon` and have a legal form that files annual reports. Never re-download a fiscal year already in `financial_fact`.
 - **Financial facts as reported.** Whole SEK, sign kept. A missing value is no row, never 0.
 - **Config over code (D29).** SNI codes, municipalities and iXBRL tag names live in `sources.yaml`. Adding a municipality or a financial field should not need a code change.
-- **API keys stay local (D24).** In `.env` (gitignored), never in code, config, tests, logs, GitHub secrets, issues or a pasted error message. `.env.example` lists the names only. Run with `uv run --env-file .env reacher ...`. If a key is ever committed, rotate it: deleting the commit is not enough.
+- **API keys stay local (D24).** In `.env` (gitignored), never in code, config, tests, logs, GitHub secrets, issues or a pasted error message. `.env.example` lists the names only, and a test fails if it gets a value. Read keys only through `api_key()` in `sources/config.py`: it returns a `SecretStr`, which prints as `**********`. Call `.get_secret_value()` in one place only, where the request header is built, and never put a key in a URL. Check your setup with `uv run --env-file .env reacher check-sources`. If a key is ever committed, rotate it: deleting the commit is not enough.
+- **Quote every code in YAML.** Codes in `sources.yaml` are text, as in the database. Unquoted, `0114` is read as the octal number 76. The config refuses numbers, so the mistake fails loudly.
 - **Real API responses are personal data.** Don't commit them or paste them into issues and PRs. Recorded test responses are anonymised by hand (fictional names, Luhn-valid fake orgnr, fake addresses and phones). `API_context.md` stays local.
 - **No orgnr, no row.** A salon without an orgnr can't be blocked, so it can't enter the database.
 - **Ingest is idempotent.** Running it twice gives the same database. Keep `first_seen_at` and update `last_seen_at`.
@@ -56,8 +58,8 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Done |
 | J-05 | [#44](https://github.com/Kisslo/reacher/issues/44) | Update shared context for SCB new API and Bolagsverket | 3 | Done |
 | T1-09 | [#46](https://github.com/Kisslo/reacher/issues/46) | Document the SCB new API fields | 4 | Done |
-| T1-11 | [#48](https://github.com/Kisslo/reacher/issues/48) | Source config and local API keys | 4 | Todo |
-| T1-10 | [#47](https://github.com/Kisslo/reacher/issues/47) | New-API compliance fields, estates and active status | 4 | In review |
+| T1-11 | [#48](https://github.com/Kisslo/reacher/issues/48) | Source config and local API keys | 4 | Done |
+| T1-10 | [#47](https://github.com/Kisslo/reacher/issues/47) | New-API compliance fields, estates and active status | 4 | Done |
 | J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Todo, Team 1 signs off the Adress rule |
 | T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (new API) | 5 | Todo |
 | T1-12 | [#49](https://github.com/Kisslo/reacher/issues/49) | `financial_fact` table, source shape and fixtures | 5 | Todo, **Team 2 waits on this** |
@@ -69,10 +71,13 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
 
 ## Team status
-*Session 2026-10-07*
-- **Done:** source contract, compliance fields, fixtures, CSV ingest, `callable_salon`, end-to-end demo, J-05, T1-09 (SCB new API documented, recorded responses in `tests/fixtures/scb/`).
+*Session 2026-10-08*
+- **Done:** source contract, compliance fields, fixtures, CSV ingest, `callable_salon`, end-to-end demo, J-05, T1-09, T1-10 (#47, new-API compliance fields), T1-11 (#48: `sources.yaml`, `SourcesConfig`, `.env.example`, `api_key()`, `reacher check-sources`).
 - **Blocked:** T1-14 on Bolagsverket API context.
-- **Next up:** T1-11 → T1-10 → T1-06 → T1-12 → T1-13.
+- **Next up:** T1-06 (reads `SourcesConfig.load()` and `api_key(SCB_API_KEY)`) → T1-12 → T1-13.
 
 ## Team 1 open questions
 See the shared open questions in `claude.md`. T1-09 answered the workplace endpoint, the `anstKl` scale, SCB Omsättning and the JSON types (`docs/scb-fields.md`). New from T1-09: workplace status (`aeStat`), Bolagsverket status (`bolStat`), phone coverage and the owner's name, see the shared open questions.
+
+- **Annual-report legal forms (T1-11 → T1-14):** `sources.yaml` starts with `49` (AB) only. *Assumption.* Check `31` (HB/KB) and others when Bolagsverket's context arrives.
+- **Net result tag (T1-11 → T1-13):** `tag_map` uses `se-gen-base:AretsResultat`. The sample in `API_context.md` only shows `AretsResultatEgetKapital` and `ResultatEfterFinansiellaPoster`, so verify against a real report.

@@ -12,6 +12,7 @@ def test_help_lists_every_command():
         "init-db",
         "load-seed",
         "ingest",
+        "check-sources",
         "build-lists",
         "import-outcomes",
         "report",

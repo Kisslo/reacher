@@ -239,7 +239,7 @@ Team 1 owns steps A–D plus the exclusion filtering. Team 2 owns scoring and ev
 - **Area:** start with one municipality (D15), filtered on the workplace's municipality. Codes for Stockholms län: 0114–0192, e.g. 0180 Stockholm.
 - **Phone, website, compliance fields:** expected from SCB (D9). Which endpoint delivers each field is checked in T1-09.
 - **Financials:** Bolagsverket annual reports (xhtml/iXBRL), revenue and net result for up to 3 fiscal years, only for callable companies with a legal form that files annual reports (D25). More API context is coming.
-- **API keys:** kept locally in `.env` by each developer, never in GitHub secrets, code, config, tests or logs (D24). `.env.example` lists the variable names.
+- **API keys:** kept locally in `.env` by each developer, never in GitHub secrets, code, config, tests or logs (D24). `.env.example` lists the variable names. Code reads them only through `api_key()` (T1-11), which masks the value. `uv run --env-file .env reacher check-sources` checks the config and keys without calling any API.
 - **Local reference only:** `API_context.md` and `Variabelbeskrivning_scb.pdf` are gitignored. API_context.md contains real people's data; anything shared goes into `docs/` anonymised.
 - **Fallback** if SCB access doesn't work out: Google searches and the Google Places API.
 
