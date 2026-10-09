@@ -50,15 +50,27 @@ def add_salon(
     employee_class=None,
     phone=None,
     city="Stockholm",
+    street=None,
+    postal_code=None,
 ):
     cursor = conn.execute(
         "INSERT INTO salon "
-        "(orgnr, name, city, registered_at, employee_class, legal_form, "
+        "(orgnr, name, street, postal_code, city, registered_at, employee_class, legal_form, "
         "ftax_status, vat_status, employer_status, company_status, workplace_status, "
         "ad_block_type, phone_block_type, workplace_ad_block_type, workplace_phone_block_type, "
         "first_seen_at, last_seen_at) "
-        "VALUES (?, ?, ?, ?, ?, '49', '1', '1', '1', '1', '1', '1', '1', '1', '1', ?, ?)",
-        (name, name, city, registered_at, employee_class, "2026-09-28", "2026-09-28"),
+        "VALUES (?, ?, ?, ?, ?, ?, ?, '49', '1', '1', '1', '1', '1', '1', '1', '1', '1', ?, ?)",
+        (
+            name,
+            name,
+            street,
+            postal_code,
+            city,
+            registered_at,
+            employee_class,
+            "2026-09-28",
+            "2026-09-28",
+        ),
     )
     salon_id = cursor.lastrowid
     if phone:
@@ -125,7 +137,50 @@ def test_snapshot_freezes_score_reasons_signals_and_phone(conn):
     ]
     assert json.loads(stored["signals"]) == ["registered_recently", "small_employer"]
     assert stored["phone"] == "+461234"
-    assert original.area == "Stockholm"
+    assert original.town == "Stockholm"
+
+
+def test_snapshot_includes_workplace_address_and_financial_years(conn):
+    salon_id = add_salon(
+        conn,
+        "Financial Salon",
+        phone="+461234",
+        street="Besöksgatan 4",
+        postal_code="11455",
+    )
+    conn.execute(
+        "INSERT INTO financial_fact "
+        "(orgnr, period_end, key, value, source_document, fetched_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        ("5590001010", "2025-04-30", "revenue", 965400, "doc-1", "2026-09-28"),
+    )
+    conn.execute(
+        "INSERT INTO financial_fact "
+        "(orgnr, period_end, key, value, source_document, fetched_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        ("5590001010", "2025-04-30", "net_result", -12600, "doc-1", "2026-09-28"),
+    )
+    conn.execute("UPDATE salon SET orgnr = ? WHERE id = ?", ("5590001010", salon_id))
+    conn.commit()
+
+    built = build_call_lists(conn, "2026w40", ("anna",), CONFIG, TODAY)
+    row = built[0].rows[0]
+
+    assert row.address == "Besöksgatan 4, 11455"
+    assert row.town == "Stockholm"
+    assert row.revenue == "2024/25: 965 400 kr"
+    assert row.result == "2024/25: -12 600 kr"
+
+    stored = conn.execute(
+        "SELECT address, town, revenue, result FROM call_list_row WHERE id = ?",
+        (row.row_id,),
+    ).fetchone()
+    assert tuple(stored) == (
+        "Besöksgatan 4, 11455",
+        "Stockholm",
+        "2024/25: 965 400 kr",
+        "2024/25: -12 600 kr",
+    )
 
 
 def test_salon_without_signals_stores_an_empty_list_not_null(conn):

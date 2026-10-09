@@ -147,9 +147,12 @@ def build_lists(week: str, sellers: str, db: Path = DEFAULT_DB) -> None:
                         rank=row.rank,
                         score=row.score,
                         salon=row.salon,
-                        area=row.area,
+                        town=row.town,
+                        address=row.address,
                         phone=row.phone,
                         source=row.source,
+                        revenue=row.revenue,
+                        result=row.result,
                         reasons="; ".join(row.reasons),
                     )
                     for row in built_list.rows

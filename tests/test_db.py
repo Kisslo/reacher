@@ -23,7 +23,7 @@ COMPLIANCE_COLUMNS = (
 def test_migrate_is_idempotent(tmp_path):
     db = tmp_path / "t.db"
     with closing(connect(db)) as conn:
-        assert migrate(conn) == [1, 2, 3, 4, 5, 6, 7]
+        assert migrate(conn) == [1, 2, 3, 4, 5, 6, 7, 8]
     with closing(connect(db)) as conn:
         assert migrate(conn) == []  # andra körningen gör ingenting
 
@@ -55,7 +55,7 @@ def test_rows_built_before_t2_08_keep_signals_null(tmp_path, monkeypatch):
         conn.commit()
 
         monkeypatch.undo()
-        assert migrate(conn) == [5, 6, 7]
+        assert migrate(conn) == [5, 6, 7, 8]
         assert conn.execute("SELECT signals FROM call_list_row").fetchone()[0] is None
 
 
