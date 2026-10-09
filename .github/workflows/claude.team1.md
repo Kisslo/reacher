@@ -18,6 +18,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | Exclusions: the `callable_salon` view | a migration + its tests |
 | Team 2's financial view `latest_financial_fact` (3 latest fiscal years per orgnr, D34) | migration 007 + `tests/test_financials.py` |
 | SCB field documentation | `docs/scb-fields.md` (T1-09) |
+| iXBRL parser: annual report xhtml → (period_end, key, value) | `src/reacher/sources/ixbrl.py` (T1-13) |
 
 ## What we hand over and what we consume
 - **We deliver (Format 1):** `salon`, `contact` and `financial_fact` rows with raw facts only. We never compute points or thresholds (D6). Whether a salon is "loss-making" or has "low revenue" is Team 2's call (D26).
@@ -64,7 +65,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Todo, Team 1 signs off the Adress rule |
 | T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (new API) | 5 | Todo |
 | T1-12 | [#49](https://github.com/Kisslo/reacher/issues/49) | `financial_fact` table, source shape and fixtures | 5 | Done |
-| T1-13 | [#50](https://github.com/Kisslo/reacher/issues/50) | Parse revenue and result from annual reports (iXBRL) | 5 | Todo |
+| T1-13 | [#50](https://github.com/Kisslo/reacher/issues/50) | Parse revenue and result from annual reports (iXBRL) | 5 | Done |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
 | T1-14 | [#51](https://github.com/Kisslo/reacher/issues/51) | Bolagsverket adapter | 6 | Blocked: Bolagsverket context |
 | T1-07 | [#23](https://github.com/Kisslo/reacher/issues/23) | Handle salons that disappear from SCB | 7–8 | Todo |
@@ -76,10 +77,16 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 - **Done:** source contract, compliance fields, fixtures, CSV ingest, `callable_salon`, end-to-end demo, J-05, T1-09, T1-10 (#47, new-API compliance fields), T1-11 (#48: `sources.yaml`, `SourcesConfig`, `.env.example`, `api_key()`, `reacher check-sources`).
 - **Done:** T1-12 (#49): migration 007 (`financial_fact` + `latest_financial_fact`), `RawFinancial` / `FinancialSource`, `ingest_financials`, `CsvFinancialSource`, `tests/fixtures/financials.csv` loaded by `load-seed`. D34 waits for Team 2 sign-off in the PR.
 - **Blocked:** T1-14 on Bolagsverket API context.
-- **Next up:** T1-06 (reads `SourcesConfig.load()` and `api_key(SCB_API_KEY)`) → T1-13 (yields `RawFinancial`).
+- **Next up:** T1-06 (reads `SourcesConfig.load()` and `api_key(SCB_API_KEY)`).
+
+*Session 2026-10-09*
+- **Done:** T1-13 (#50): `parse_annual_report` in `sources/ixbrl.py` (stdlib ElementTree, D35), fictional report in `tests/fixtures/bolagsverket/`. Returns `ReportFact(period_end, key, value)`; T1-14 adds orgnr and document id to make a `RawFinancial`.
+- **Blocked:** T1-14 on Bolagsverket API context.
+- **Next up:** T1-06 (SCB adapter).
+- **Open:** `se-gen-base:AretsResultat` not verified on a real report (sample truncated); moved to T1-14.
 
 ## Team 1 open questions
 See the shared open questions in `claude.md`. T1-09 answered the workplace endpoint, the `anstKl` scale, SCB Omsättning and the JSON types (`docs/scb-fields.md`). New from T1-09: workplace status (`aeStat`), Bolagsverket status (`bolStat`), phone coverage and the owner's name, see the shared open questions.
 
 - **Annual-report legal forms (T1-11 → T1-14):** `sources.yaml` starts with `49` (AB) only. *Assumption.* Check `31` (HB/KB) and others when Bolagsverket's context arrives.
-- **Net result tag (T1-11 → T1-13):** `tag_map` uses `se-gen-base:AretsResultat`. The sample in `API_context.md` only shows `AretsResultatEgetKapital` and `ResultatEfterFinansiellaPoster`, so verify against a real report.
+- **Net result tag (T1-11 → T1-13 → T1-14):** `tag_map` uses `se-gen-base:AretsResultat`. The sample in `API_context.md` only shows `AretsResultatEgetKapital` and `ResultatEfterFinansiellaPoster`, so verify against a real report. T1-13 verified `Nettoomsattning` only: the sample is truncated before Årets resultat in the income statement. Check on the first real report in T1-14.

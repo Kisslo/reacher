@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  PÅHITTAD årsredovisning för tester av iXBRL-parsern (T1-13). Företaget, orgnr
+  (Luhn-giltigt men uppdiktat) och alla belopp är fiktiva. Strukturen följer en
+  riktig rapport från Bolagsverket (Visma Bokslut, K2), men kortad.
+  Se tests/fixtures/README.md, avsnittet "Årsredovisning (T1-13)".
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:iso4217="http://www.xbrl.org/2003/iso4217"
+      xmlns:ixt="http://www.xbrl.org/inlineXBRL/transformation/2010-04-20"
+      xmlns:xlink="http://www.w3.org/1999/xlink"
+      xmlns:link="http://www.xbrl.org/2003/linkbase"
+      xmlns:xbrli="http://www.xbrl.org/2003/instance"
+      xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"
+      xmlns:se-gen-base="http://www.taxonomier.se/se/fr/gen-base/2021-10-31"
+      xmlns:se-cd-base="http://www.taxonomier.se/se/fr/cd-base/2021-10-31"
+      xmlns:se-mem-base="http://www.taxonomier.se/se/fr/mem-base/2021-10-31">
+<head>
+    <title>Årsredovisning för Fiktiva Saxen AB, 2025-05-01 - 2026-04-30</title>
+</head>
+<body>
+<div style="display:none">
+    <ix:header>
+        <ix:hidden>
+            <ix:nonNumeric name="se-cd-base:RakenskapsarForstaDag" contextRef="period0">2025-05-01</ix:nonNumeric>
+            <ix:nonNumeric name="se-cd-base:RakenskapsarSistaDag" contextRef="period0">2026-04-30</ix:nonNumeric>
+        </ix:hidden>
+        <ix:references>
+            <link:schemaRef xlink:type="simple" xlink:href="http://xbrl.taxonomier.se/se/fr/gaap/k2-all/ab/risbs/2024-09-12/se-k2-ab-risbs-2024-09-12.xsd" />
+        </ix:references>
+        <ix:resources>
+            <xbrli:context id="period0">
+                <xbrli:entity><xbrli:identifier scheme="http://www.bolagsverket.se">559999-0016</xbrli:identifier></xbrli:entity>
+                <xbrli:period><xbrli:startDate>2025-05-01</xbrli:startDate><xbrli:endDate>2026-04-30</xbrli:endDate></xbrli:period>
+            </xbrli:context>
+            <xbrli:context id="period1">
+                <xbrli:entity><xbrli:identifier scheme="http://www.bolagsverket.se">559999-0016</xbrli:identifier></xbrli:entity>
+                <xbrli:period><xbrli:startDate>2024-05-01</xbrli:startDate><xbrli:endDate>2025-04-30</xbrli:endDate></xbrli:period>
+            </xbrli:context>
+            <xbrli:context id="period2">
+                <xbrli:entity><xbrli:identifier scheme="http://www.bolagsverket.se">559999-0016</xbrli:identifier></xbrli:entity>
+                <xbrli:period><xbrli:startDate>2023-05-01</xbrli:startDate><xbrli:endDate>2024-04-30</xbrli:endDate></xbrli:period>
+            </xbrli:context>
+            <xbrli:context id="period3">
+                <xbrli:entity><xbrli:identifier scheme="http://www.bolagsverket.se">559999-0016</xbrli:identifier></xbrli:entity>
+                <xbrli:period><xbrli:startDate>2022-05-01</xbrli:startDate><xbrli:endDate>2023-04-30</xbrli:endDate></xbrli:period>
+            </xbrli:context>
+            <xbrli:context id="balans0">
+                <xbrli:entity><xbrli:identifier scheme="http://www.bolagsverket.se">559999-0016</xbrli:identifier></xbrli:entity>
+                <xbrli:period><xbrli:instant>2026-04-30</xbrli:instant></xbrli:period>
+            </xbrli:context>
+            <xbrli:context id="balans1">
+                <xbrli:entity><xbrli:identifier scheme="http://www.bolagsverket.se">559999-0016</xbrli:identifier></xbrli:entity>
+                <xbrli:period><xbrli:instant>2025-04-30</xbrli:instant></xbrli:period>
+            </xbrli:context>
+            <xbrli:unit id="SEK"><xbrli:measure>iso4217:SEK</xbrli:measure></xbrli:unit>
+            <xbrli:unit id="procent"><xbrli:measure>xbrli:pure</xbrli:measure></xbrli:unit>
+        </ix:resources>
+    </ix:header>
+</div>
+
+<h2>Flerårsöversikt</h2>
+<table>
+<tr><td>&#160;</td><td>2025/2026</td><td>2024/2025</td><td>2023/2024</td><td>2022/2023</td></tr>
+<tr>
+    <td>Nettoomsättning</td>
+    <td><ix:nonFraction name="se-gen-base:Nettoomsattning" contextRef="period0" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">4 702 330</ix:nonFraction></td>
+    <td><ix:nonFraction name="se-gen-base:Nettoomsattning" contextRef="period1" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">4&#160;388&#160;615</ix:nonFraction></td>
+    <td><ix:nonFraction name="se-gen-base:Nettoomsattning" contextRef="period2" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">4 105 220</ix:nonFraction></td>
+    <td><ix:nonFraction name="se-gen-base:Nettoomsattning" contextRef="period3" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">3 912 040</ix:nonFraction></td>
+</tr>
+<tr>
+    <td>Resultat efter finansiella poster</td>
+    <td><ix:nonFraction name="se-gen-base:ResultatEfterFinansiellaPoster" contextRef="period0" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">158 120</ix:nonFraction></td>
+    <td>-<ix:nonFraction name="se-gen-base:ResultatEfterFinansiellaPoster" contextRef="period1" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0" sign="-">51 900</ix:nonFraction></td>
+    <td><ix:nonFraction name="se-gen-base:ResultatEfterFinansiellaPoster" contextRef="period2" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">97 310</ix:nonFraction></td>
+    <td><ix:nonFraction name="se-gen-base:ResultatEfterFinansiellaPoster" contextRef="period3" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">212 650</ix:nonFraction></td>
+</tr>
+<tr>
+    <td>Soliditet (%)</td>
+    <td><ix:nonFraction name="se-gen-base:Soliditet" contextRef="balans0" unitRef="procent" format="ixt:numspacecomma" scale="-2" decimals="INF">41,7</ix:nonFraction></td>
+    <td><ix:nonFraction name="se-gen-base:Soliditet" contextRef="balans1" unitRef="procent" format="ixt:numspacecomma" scale="-2" decimals="INF">36,2</ix:nonFraction></td>
+</tr>
+</table>
+
+<h2>Förändringar i eget kapital</h2>
+<table>
+<tr>
+    <td>Årets resultat (eget kapital)</td>
+    <td><ix:nonFraction name="se-gen-base:AretsResultatEgetKapital" contextRef="balans0" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">126 455</ix:nonFraction></td>
+</tr>
+<tr>
+    <td>Aktiekapital</td>
+    <td><ix:nonFraction name="se-gen-base:Aktiekapital" contextRef="balans0" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">25 000</ix:nonFraction></td>
+</tr>
+</table>
+
+<h2>Resultaträkning</h2>
+<table>
+<tr><td>&#160;</td><td>2025-05-01 – 2026-04-30</td><td>2024-05-01 – 2025-04-30</td></tr>
+<tr>
+    <td>Nettoomsättning</td>
+    <td><ix:nonFraction name="se-gen-base:Nettoomsattning" contextRef="period0" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">4 702 330</ix:nonFraction></td>
+    <td><ix:nonFraction name="se-gen-base:Nettoomsattning" contextRef="period1" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">4 388 615</ix:nonFraction></td>
+</tr>
+<tr>
+    <td>Årets resultat</td>
+    <td><ix:nonFraction name="se-gen-base:AretsResultat" contextRef="period0" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0">126 455</ix:nonFraction></td>
+    <td>-<ix:nonFraction name="se-gen-base:AretsResultat" contextRef="period1" unitRef="SEK" format="ixt:numspacecomma" scale="0" decimals="0" sign="-">48 210</ix:nonFraction></td>
+</tr>
+</table>
+</body>
+</html>
