@@ -9,7 +9,7 @@
 #                     inga poäng och visas inte för säljaren.
 # advertises_chair och unmet_search_demand är parkerade (D4). De läggs till här
 # tillsammans med sin härledningsfunktion när de plockas upp.
-version: "v3"
+version: "v4"
 half_life_days: 90
 signals:
   registered_recently:
@@ -23,3 +23,22 @@ signals:
     # SCB Storleksklass Anställda: "2" = 1-4 anställda. "0" = uppgift saknas,
     # "1" = 0 anställda. Citattecknen behövs: koderna är text i databasen.
     classes: ["2"]
+  # Finansiella signaler (T2-09) ur latest_financial_fact. Skuggläge (D26): de får
+  # poäng först när T2-07 visat att de hjälper, loggat som ett beslut. Ingen
+  # årsredovisning = ingen signal. loss_making och low_revenue räknar bara på
+  # företagets senaste räkenskapsår.
+  loss_making:
+    enabled: true
+    weight: 0
+  low_revenue:
+    enabled: true
+    weight: 0
+    # ANTAGANDE: startvärde utan underlag, tunas i T2-07. Strikt under, i hela kronor.
+    below_sek: 500000
+  declining_revenue:
+    # Av tills riktiga data visar att tre jämförbara år i följd är vanligt nog.
+    enabled: false
+    weight: 0
+    # Minskad omsättning varje år, så här många räkenskapsår i följd utan hål.
+    # Högst bolagsverket.years i sources.yaml.
+    years: 3

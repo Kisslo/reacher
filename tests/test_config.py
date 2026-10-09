@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from reacher.config import ScoringConfig
 from reacher.scoring import SIGNALS
+from reacher.sources.config import SourcesConfig
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 COMMITTED_CONFIG = REPO_ROOT / "scoring.yaml"
@@ -15,6 +16,9 @@ COMMITTED_CONFIG = REPO_ROOT / "scoring.yaml"
 SIGNAL_BLOCKS = {
     "registered_recently": {"enabled": True, "weight": 1, "months": 24},
     "small_employer": {"enabled": True, "weight": 1, "classes": ["2"]},
+    "loss_making": {"enabled": True, "weight": 0},
+    "low_revenue": {"enabled": True, "weight": 0, "below_sek": 500000},
+    "declining_revenue": {"enabled": False, "weight": 0, "years": 3},
 }
 VALID = {"version": "v1", "half_life_days": 90, "signals": SIGNAL_BLOCKS}
 
@@ -49,7 +53,7 @@ def test_signal_settings_are_read_per_signal():
 def test_unknown_signal_is_rejected():
     """Ett stavfel, eller en signal utan härledningsfunktion, ska explodera och
     inte tyst ge noll poäng (D29)."""
-    for unknown in ("small_employers", "loss_making"):
+    for unknown in ("small_employers", "advertises_chair"):
         signals = {**SIGNAL_BLOCKS, unknown: {"enabled": True, "weight": 1}}
         with pytest.raises(ValidationError, match=unknown):
             ScoringConfig.model_validate({**VALID, "signals": signals})
@@ -109,6 +113,14 @@ def test_every_field_is_required(missing):
         ("small_employer", "enabled"),
         ("small_employer", "weight"),
         ("small_employer", "classes"),
+        ("loss_making", "enabled"),
+        ("loss_making", "weight"),
+        ("low_revenue", "enabled"),
+        ("low_revenue", "weight"),
+        ("low_revenue", "below_sek"),
+        ("declining_revenue", "enabled"),
+        ("declining_revenue", "weight"),
+        ("declining_revenue", "years"),
     ],
 )
 def test_every_signal_setting_is_required(key, setting):
@@ -142,6 +154,33 @@ def test_setting_from_another_signal_is_rejected():
     """classes hör till small_employer. På fel signal är det ett misstag, inte en gräns."""
     with pytest.raises(ValidationError):
         ScoringConfig.model_validate(with_signal("registered_recently", classes=["2"]))
+
+
+@pytest.mark.parametrize("bad", [0, -500000, 499999.5])
+def test_low_revenue_threshold_must_be_positive_whole_kronor(bad):
+    with pytest.raises(ValidationError):
+        ScoringConfig.model_validate(with_signal("low_revenue", below_sek=bad))
+
+
+@pytest.mark.parametrize("bad", [0, 1])
+def test_declining_revenue_needs_at_least_two_years(bad):
+    """Ett enda år går inte att jämföra med något."""
+    with pytest.raises(ValidationError):
+        ScoringConfig.model_validate(with_signal("declining_revenue", years=bad))
+
+
+def test_declining_revenue_years_fit_in_the_financial_view():
+    """latest_financial_fact har lika många år som bolagsverket.years. Fler år än
+    så skulle göra att declining_revenue tyst aldrig slår till."""
+    cfg = ScoringConfig.load(COMMITTED_CONFIG)
+    sources = SourcesConfig.load(REPO_ROOT / "sources.yaml")
+    assert cfg.signal("declining_revenue").years <= sources.bolagsverket.years
+
+
+def test_loss_making_has_no_threshold():
+    """Förlust är resultat under 0. En gräns här är ett misstag, inte en inställning."""
+    with pytest.raises(ValidationError):
+        ScoringConfig.model_validate(with_signal("loss_making", below_sek=0))
 
 
 def test_size_class_codes_must_be_quoted_in_yaml():

@@ -28,6 +28,9 @@ CONFIG = ScoringConfig.model_validate(
         "signals": {
             "registered_recently": {"enabled": True, "weight": 1, "months": 24},
             "small_employer": {"enabled": True, "weight": 1, "classes": ["2"]},
+            "loss_making": {"enabled": True, "weight": 0},
+            "low_revenue": {"enabled": True, "weight": 0, "below_sek": 500000},
+            "declining_revenue": {"enabled": False, "weight": 0, "years": 3},
         },
     }
 )

@@ -6,16 +6,20 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
+from reacher.cli import FIXTURES_DIR
 from reacher.cli import build_lists as cli_build_lists
 from reacher.config import ScoringConfig
 from reacher.db import connect, migrate
 from reacher.excel.contract import COL, FIRST_DATA_ROW, SHEET
+from reacher.ingest import ingest, ingest_financials
 from reacher.lists import build_call_lists
+from reacher.sources.csv_source import CsvFinancialSource, CsvSource
 
 TODAY = date(2026, 9, 28)
+FINANCIAL_SIGNALS = ("loss_making", "low_revenue", "declining_revenue")
 
 
-def make_config(small_employer_weight=1) -> ScoringConfig:
+def make_config(small_employer_weight=1, financial_enabled=True) -> ScoringConfig:
     return ScoringConfig.model_validate(
         {
             "version": "test-v1",
@@ -27,6 +31,9 @@ def make_config(small_employer_weight=1) -> ScoringConfig:
                     "weight": small_employer_weight,
                     "classes": ["2"],
                 },
+                "loss_making": {"enabled": financial_enabled, "weight": 0},
+                "low_revenue": {"enabled": financial_enabled, "weight": 0, "below_sek": 500000},
+                "declining_revenue": {"enabled": financial_enabled, "weight": 0, "years": 3},
             },
         }
     )
@@ -214,6 +221,56 @@ def test_shadow_signal_is_stored_but_not_shown(conn, tmp_path, monkeypatch):
     sheet = load_workbook(tmp_path / "output" / "2026w40_anna.xlsx")[SHEET]
     assert not sheet.cell(row=FIRST_DATA_ROW, column=COL["Varför vi ringer"]).value
     assert sheet.cell(row=FIRST_DATA_ROW, column=COL["Salong"]).value == "Shadow Salon"
+
+
+def load_fixtures(conn):
+    ingest(conn, CsvSource(FIXTURES_DIR).fetch(), now="2026-09-28T08:00:00+00:00")
+    ingest_financials(
+        conn, CsvFinancialSource(FIXTURES_DIR).fetch(), now="2026-09-28T08:00:00+00:00"
+    )
+
+
+def frozen_signals(conn, call_list_ids) -> dict[str, set[str]]:
+    """Signalnyckel -> namnen på salongerna som fick den, ur call_list_row."""
+    placeholders = ",".join("?" * len(call_list_ids))
+    by_signal: dict[str, set[str]] = {}
+    for row in conn.execute(
+        "SELECT salon.name, call_list_row.signals FROM call_list_row "
+        "JOIN salon ON salon.id = call_list_row.salon_id "
+        f"WHERE call_list_row.call_list_id IN ({placeholders})",
+        call_list_ids,
+    ):
+        for key in json.loads(row["signals"]):
+            by_signal.setdefault(key, set()).add(row["name"])
+    return by_signal
+
+
+def test_financial_shadow_signals_are_frozen_per_row_from_the_fixtures(conn):
+    """Läses via latest_financial_fact på orgnr. Se tests/fixtures/README.md."""
+    load_fixtures(conn)
+
+    built = build_call_lists(conn, "2026w40", ("anna", "bengt"), CONFIG, TODAY)
+
+    signals = frozen_signals(conn, [item.call_list_id for item in built])
+    # Brynboden: net_result saknas senaste året. Frisyr & Form: förlusten är ett
+    # äldre år. Nackeateljén: resultat exakt 0. Saxateljén: exakt 500 000.
+    assert signals["loss_making"] == {"Salong Dubbelgångaren", "Franssalongen"}
+    assert signals["low_revenue"] == {"Franssalongen", "Nackeateljén"}
+    # Hårateljén saknar 2023, Nackeateljén och Brynboden har bara två år.
+    assert signals["declining_revenue"] == {"Salong Dubbelgångaren"}
+
+
+def test_financial_shadow_signals_do_not_change_the_lists(conn):
+    """Skuggläge (D26): samma rangordning, poäng och skäl som utan signalerna."""
+    load_fixtures(conn)
+
+    def lists(week, config):
+        return [
+            [(row.salon_id, row.rank, row.score, row.reasons) for row in item.rows]
+            for item in build_call_lists(conn, week, ("anna", "bengt"), config, TODAY)
+        ]
+
+    assert lists("2026w40", CONFIG) == lists("2026w41", make_config(financial_enabled=False))
 
 
 def test_duplicate_week_and_seller_rolls_back(conn):

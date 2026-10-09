@@ -1,4 +1,4 @@
-"""Poäng och klartextskäl per salong, ur salongens egna fakta (T2-01, T2-08).
+"""Poäng och klartextskäl per salong, ur salongens egna fakta (T2-01, T2-08, T2-09).
 
 Rena funktioner: ingen databas och ingen klocka. Anroparen skickar in dagens
 datum, så att en lista byggd för en viss vecka ger samma poäng om den byggs om.
@@ -13,9 +13,10 @@ Signalrader med halveringstid (signal-tabellen) ingår inte i MVP:n (D4).
 
 import calendar
 import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date
+from itertools import pairwise
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -25,6 +26,14 @@ if TYPE_CHECKING:
 
 REGISTERED_RECENTLY = "registered_recently"
 SMALL_EMPLOYER = "small_employer"
+LOSS_MAKING = "loss_making"
+LOW_REVENUE = "low_revenue"
+DECLINING_REVENUE = "declining_revenue"
+
+# Nycklar i financial_fact, satta av Team 1 i bolagsverket.tag_map (sources.yaml).
+# Byts en nyckel där utan att ändras här slutar signalerna tyst att slå till.
+REVENUE = "revenue"
+NET_RESULT = "net_result"
 
 # Klartext för "Varför vi ringer". Okända koder får en generisk text i stället
 # för att krascha, om någon lägger till en storleksklass i scoring.yaml.
@@ -54,6 +63,26 @@ class SmallEmployerSettings(SignalSettings):
     classes: list[str] = Field(min_length=1)
 
 
+class LowRevenueSettings(SignalSettings):
+    # Omsättning strikt under så här många hela kronor senaste räkenskapsåret.
+    below_sek: int = Field(gt=0)
+
+
+class DecliningRevenueSettings(SignalSettings):
+    # Omsättningen har minskat varje år, så här många räkenskapsår i följd. Fler
+    # än bolagsverket.years i sources.yaml finns aldrig i latest_financial_fact.
+    years: int = Field(ge=2)
+
+
+@dataclass(frozen=True, slots=True)
+class FiscalYear:
+    """Ett räkenskapsår ur latest_financial_fact. None = nyckeln saknas det året."""
+
+    period_end: date
+    revenue: int | None = None
+    net_result: int | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class SalonFacts:
     """Det scoringen behöver veta om en salong. None = källan sa ingenting."""
@@ -61,16 +90,43 @@ class SalonFacts:
     salon_id: int
     registered_at: date | None = None
     employee_class: str | None = None  # SCB-kod som text, t.ex. "2"
+    # Företagets senaste räkenskapsår, nyast först. Tomt = ingen årsredovisning:
+    # salongen är då varken lönsam eller olönsam.
+    fiscal_years: tuple[FiscalYear, ...] = ()
 
     @classmethod
-    def from_row(cls, row: sqlite3.Row) -> "SalonFacts":
+    def from_row(cls, row: sqlite3.Row, fiscal_years: tuple[FiscalYear, ...] = ()) -> "SalonFacts":
         """Från en rad ur callable_salon. Datum ligger som ISO-8601 TEXT i databasen."""
         registered_at = row["registered_at"]
         return cls(
             salon_id=row["id"],
             registered_at=date.fromisoformat(registered_at) if registered_at else None,
             employee_class=row["employee_class"],
+            fiscal_years=fiscal_years,
         )
+
+
+def fiscal_years_by_orgnr(rows: Iterable[sqlite3.Row]) -> dict[str, tuple[FiscalYear, ...]]:
+    """Rader ur latest_financial_fact -> räkenskapsår per orgnr, nyast först.
+
+    Nycklar som ingen signal använder (nya rader i tag_map) hoppas över.
+    """
+    by_orgnr: dict[str, dict[str, dict[str, int]]] = {}
+    for row in rows:
+        year = by_orgnr.setdefault(row["orgnr"], {}).setdefault(row["period_end"], {})
+        year[row["key"]] = row["value"]
+    return {
+        orgnr: tuple(
+            FiscalYear(
+                period_end=date.fromisoformat(period_end),
+                revenue=values.get(REVENUE),
+                net_result=values.get(NET_RESULT),
+            )
+            # ISO-datum sorteras rätt som text.
+            for period_end, values in sorted(years.items(), reverse=True)
+        )
+        for orgnr, years in by_orgnr.items()
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +177,50 @@ def _small_employer(facts: SalonFacts, settings: SmallEmployerSettings, today: d
     return EMPLOYEE_CLASS_TEXT.get(code, f"Storleksklass {code} hos SCB")
 
 
+def _sek(amount: int) -> str:
+    return f"{amount:,} kr".replace(",", " ")
+
+
+def _months_apart(older: date, newer: date) -> int:
+    return (newer.year - older.year) * 12 + newer.month - older.month
+
+
+# De finansiella signalerna räknar bara på företagets senaste räkenskapsår (rang 1
+# i latest_financial_fact). Saknas nyckeln det året används aldrig ett äldre år
+# (D34): då finns ingen signal.
+
+
+def _loss_making(facts: SalonFacts, settings: SignalSettings, today: date) -> str | None:
+    latest = facts.fiscal_years[0] if facts.fiscal_years else None
+    # Resultat exakt 0 är ingen förlust.
+    if latest is None or latest.net_result is None or latest.net_result >= 0:
+        return None
+    return "Gick med förlust senaste räkenskapsåret"
+
+
+def _low_revenue(facts: SalonFacts, settings: LowRevenueSettings, today: date) -> str | None:
+    latest = facts.fiscal_years[0] if facts.fiscal_years else None
+    if latest is None or latest.revenue is None or latest.revenue >= settings.below_sek:
+        return None
+    return f"Omsättning under {_sek(settings.below_sek)} senaste räkenskapsåret"
+
+
+def _declining_revenue(
+    facts: SalonFacts, settings: DecliningRevenueSettings, today: date
+) -> str | None:
+    years = facts.fiscal_years[: settings.years]
+    if len(years) < settings.years or any(year.revenue is None for year in years):
+        return None
+    pairs = list(pairwise(years))  # (nyare, äldre)
+    # Ett hål (ett år utan rapport) eller ett omlagt räkenskapsår gör att åren
+    # inte går att jämföra rakt av.
+    if any(_months_apart(older.period_end, newer.period_end) != 12 for newer, older in pairs):
+        return None
+    if any(newer.revenue >= older.revenue for newer, older in pairs):
+        return None
+    return f"Minskande omsättning {settings.years} räkenskapsår i rad"
+
+
 @dataclass(frozen=True, slots=True)
 class Signal:
     settings: type[SignalSettings]
@@ -133,6 +233,9 @@ class Signal:
 SIGNALS: dict[str, Signal] = {
     REGISTERED_RECENTLY: Signal(RegisteredRecentlySettings, _registered_recently),
     SMALL_EMPLOYER: Signal(SmallEmployerSettings, _small_employer),
+    LOSS_MAKING: Signal(SignalSettings, _loss_making),
+    LOW_REVENUE: Signal(LowRevenueSettings, _low_revenue),
+    DECLINING_REVENUE: Signal(DecliningRevenueSettings, _declining_revenue),
 }
 
 

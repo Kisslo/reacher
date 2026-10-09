@@ -8,7 +8,7 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 ## What we own
 | Area | Where |
 |---|---|
-| Scoring: signal registry, derived signals (`registered_recently`, `small_employer`, `loss_making`, `low_revenue`), shadow mode | `scoring.yaml`, `src/reacher/config.py`, `src/reacher/scoring.py` |
+| Scoring: signal registry, derived signals (`registered_recently`, `small_employer`, `loss_making`, `low_revenue`, `declining_revenue`), shadow mode | `scoring.yaml`, `src/reacher/config.py`, `src/reacher/scoring.py` |
 | Ranking, per-salesperson split, snapshot (incl. derived signals per row, T2-08) | `reacher build-lists`, tables `call_list` / `call_list_row` |
 | Excel contract, export and import (incl. Adress, Ort, Omsättning, Resultat, J-06) | `src/reacher/excel/`, `reacher import-outcomes`, table `outcome` |
 | Block list writes (`opt_out`, `existing_customer`) | table `suppression` |
@@ -49,7 +49,7 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 | J-05 | [#44](https://github.com/Kisslo/reacher/issues/44) | Update shared context for SCB new API and Bolagsverket | 3 | Done |
 | T2-08 | [#52](https://github.com/Kisslo/reacher/issues/52) | Signal registry, on/off switch and shadow mode | 4 | Done |
 | J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Done |
-| T2-09 | [#53](https://github.com/Kisslo/reacher/issues/53) | Financial signals in shadow mode | 5 | Todo |
+| T2-09 | [#53](https://github.com/Kisslo/reacher/issues/53) | Financial signals in shadow mode | 5 | Done |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
 | T2-07 | [#25](https://github.com/Kisslo/reacher/issues/25) | First tuning pass on signal weights (incl. shadow signals) | 7–8 | Todo |
 
@@ -58,13 +58,17 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 ## Team status
 *Session 2026-10-09*
 - **Done:** everything through J-06: scoring, ranking and snapshots, Excel export/import, block list, simulation, top-20 report, end-to-end demo, and the updated Excel contract with workplace address, town, revenue, and result.
+- **Done:** T2-09 (#53): financial signals in shadow mode. `loss_making` and `low_revenue` at weight 0, `declining_revenue` registered with `enabled: false`. `build_call_lists` reads `latest_financial_fact` once for both the signals and the Omsättning/Resultat cells.
 - **In progress:** none.
-- **Next up:** T2-09 financial signals in shadow mode, followed by J-04 first real list and T2-07 tuning.
+- **Next up:** J-04 first real list, then T2-07 tuning.
 
 ## Team 2 open questions
 - ~~How is "reached" defined in the report?~~ Resolved as D23.
 - ~~Where does the 24-month threshold live?~~ Resolved (T2-01, T2-08): `months` in the `registered_recently` block of `scoring.yaml`.
 - Rows are split fairly and deterministically by alternating global rank (T2-02 implementation default).
 - **`anstKl` scale** (from T1-09): if the new API uses the SME scale, `classes: ["2"]` in the `small_employer` block is wrong.
-- **`low_revenue` threshold:** the starting value is an assumption (weight 0, so it can't affect lists yet). Alternatively SCB's Omsättning size class, if the API exposes it.
+- **`low_revenue` threshold:** `below_sek: 500000` is an assumption (weight 0, so it can't affect lists yet). Alternatively SCB's Omsättning size class, if the API exposes it.
+- **Old annual reports (T2-09 → T2-07):** the financial signals use the company's newest report however old it is, so a 2019 loss still counts. Proposal: no age limit while the weight is 0; decide in T2-07 once real data shows how old the reports are. *Assumption.*
+- **`loss_making` on real data (T1-13 → T1-14):** `se-gen-base:AretsResultat` is not yet verified on a real report. If the tag is wrong, real companies get no `net_result` rows and `loss_making` never fires. Check its hit count before T2-07 reads anything into it.
+- **`declining_revenue`:** registered with `enabled: false`. Needs `years` (3) fiscal years in a row, 12 months apart, all with revenue, falling every year. Switch on once real data shows enough companies with three comparable years.
 - ~~**Excel financials:** which years?~~ Resolved as D27: all available years up to 3, one line per year in the Omsättning and Resultat cells. Final format signed off in J-06.
