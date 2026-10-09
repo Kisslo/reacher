@@ -17,9 +17,12 @@ class RankedSalon:
 
     salon_id: int
     name: str
-    area: str
+    address: str
+    town: str
     phone: str
     source: str
+    revenue: str
+    result: str
     score: Score
 
 
@@ -35,8 +38,11 @@ class SnapshotRow:
     signals: tuple[str, ...]
     phone: str
     salon: str
-    area: str
+    town: str
     source: str
+    address: str = ""
+    revenue: str = ""
+    result: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +54,30 @@ class BuiltList:
     seller: str
     rows: tuple[SnapshotRow, ...]
     skipped_without_phone: int
+
+
+def _format_period_end(period_end: str) -> str:
+    year, month, day = (int(part) for part in period_end.split("-"))
+    if (month, day) == (12, 31):
+        return str(year)
+    return f"{year - 1}/{str(year)[-2:]}"
+
+
+def _format_financial_value(value: int) -> str:
+    return f"{value:,}".replace(",", " ") + " kr"
+
+
+def _financial_lines(
+    rows: Sequence[sqlite3.Row],
+) -> tuple[str, str]:
+    values_by_key: dict[str, list[str]] = {"revenue": [], "net_result": []}
+    for row in rows:
+        key = row["key"]
+        if key in values_by_key:
+            values_by_key[key].append(
+                f"{_format_period_end(row['period_end'])}: {_format_financial_value(row['value'])}"
+            )
+    return "\n".join(values_by_key["revenue"]), "\n".join(values_by_key["net_result"])
 
 
 def _rank_callable_salons(
@@ -69,9 +99,12 @@ def _rank_callable_salons(
             RankedSalon(
                 salon_id=facts.salon_id,
                 name=row["name"],
-                area=row["city"] or "",
+                address=row["address"],
+                town=row["city"] or "",
                 phone=phone,
                 source=row["phone_source_url"] or "",
+                revenue=row["revenue"],
+                result=row["result"],
                 score=score_salon(facts, config, built_on),
             )
         )
@@ -100,15 +133,35 @@ def build_call_lists(
         raise ValueError("Salespeople must be unique")
 
     callable_rows = conn.execute(
-        "SELECT callable.id, callable.name, callable.city, callable.registered_at, "
+        "SELECT callable.id, callable.orgnr, callable.name, callable.street, "
+        "callable.postal_code, callable.city, callable.registered_at, "
         "callable.employee_class, "
         "(SELECT value FROM contact WHERE salon_id = callable.id AND kind = 'phone' "
         "ORDER BY id LIMIT 1) AS phone, "
         "(SELECT source_url FROM contact WHERE salon_id = callable.id AND kind = 'phone' "
-        "ORDER BY id LIMIT 1) AS phone_source_url "
+        "ORDER BY id LIMIT 1) AS phone_source_url, "
+        "(SELECT group_concat(period_end || '|' || key || '|' || value, char(10)) "
+        " FROM (SELECT period_end, key, value FROM latest_financial_fact "
+        "       WHERE orgnr = callable.orgnr ORDER BY period_end DESC, key)) "
+        "AS financial_values "
         "FROM callable_salon AS callable ORDER BY callable.id"
     ).fetchall()
-    ranked, skipped_without_phone = _rank_callable_salons(callable_rows, config, built_on)
+    enriched_rows: list[dict[str, object]] = []
+    for source_row in callable_rows:
+        financial_rows = [
+            {"period_end": period_end, "key": key, "value": int(value)}
+            for period_end, key, value in (
+                item.split("|") for item in (source_row["financial_values"] or "").splitlines()
+            )
+        ]
+        revenue, result = _financial_lines(financial_rows)
+        address_parts = [source_row["street"], source_row["postal_code"]]
+        row = dict(source_row)
+        row["address"] = ", ".join(part for part in address_parts if part)
+        row["revenue"] = revenue
+        row["result"] = result
+        enriched_rows.append(row)
+    ranked, skipped_without_phone = _rank_callable_salons(enriched_rows, config, built_on)
     created_at = now()
     built: list[BuiltList] = []
 
@@ -128,8 +181,9 @@ def build_call_lists(
 
                 cursor = conn.execute(
                     "INSERT INTO call_list_row "
-                    "(call_list_id, salon_id, rank, score, reasons, signals, phone) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "(call_list_id, salon_id, rank, score, reasons, signals, phone, "
+                    "address, town, revenue, result) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         call_list_id,
                         salon.salon_id,
@@ -138,6 +192,10 @@ def build_call_lists(
                         json.dumps(salon.score.reasons, ensure_ascii=False),
                         json.dumps(salon.score.signals),
                         salon.phone,
+                        salon.address,
+                        salon.town,
+                        salon.revenue,
+                        salon.result,
                     ),
                 )
                 snapshot_rows.append(
@@ -150,8 +208,11 @@ def build_call_lists(
                         signals=salon.score.signals,
                         phone=salon.phone,
                         salon=salon.name,
-                        area=salon.area,
+                        town=salon.town,
+                        address=salon.address,
                         source=salon.source,
+                        revenue=salon.revenue,
+                        result=salon.result,
                     )
                 )
 

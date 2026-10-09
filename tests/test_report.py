@@ -202,7 +202,7 @@ def test_report_matches_simulated_and_imported_outcomes(conn, tmp_path):
                     row.rank,
                     row.score,
                     row.salon,
-                    row.area,
+                    row.town,
                     row.phone,
                     row.source,
                     "; ".join(row.reasons),

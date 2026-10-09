@@ -48,18 +48,18 @@ Take the callable salons, rank them, give each salesperson a locked Excel file, 
 | J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Done |
 | J-05 | [#44](https://github.com/Kisslo/reacher/issues/44) | Update shared context for SCB new API and Bolagsverket | 3 | Done |
 | T2-08 | [#52](https://github.com/Kisslo/reacher/issues/52) | Signal registry, on/off switch and shadow mode | 4 | Done |
-| J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Todo |
-| T2-09 | [#53](https://github.com/Kisslo/reacher/issues/53) | Financial signals in shadow mode | 5 | Todo, waits on T1-12 |
+| J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Done |
+| T2-09 | [#53](https://github.com/Kisslo/reacher/issues/53) | Financial signals in shadow mode | 5 | Todo |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
 | T2-07 | [#25](https://github.com/Kisslo/reacher/issues/25) | First tuning pass on signal weights (incl. shadow signals) | 7–8 | Todo |
 
 The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
 
 ## Team status
-*Session 2026-10-06*
-- **Done:** everything through J-03: scoring, ranking and snapshots, Excel export/import, block list, simulation, top-20 report, end-to-end demo.
-- **In progress:** J-05 (context update).
-- **Next up:** T2-08 → J-06 → T2-09.
+*Session 2026-10-09*
+- **Done:** everything through J-06: scoring, ranking and snapshots, Excel export/import, block list, simulation, top-20 report, end-to-end demo, and the updated Excel contract with workplace address, town, revenue, and result.
+- **In progress:** none.
+- **Next up:** T2-09 financial signals in shadow mode, followed by J-04 first real list and T2-07 tuning.
 
 ## Team 2 open questions
 - ~~How is "reached" defined in the report?~~ Resolved as D23.

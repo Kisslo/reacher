@@ -28,10 +28,13 @@ class CallListRow:
     rank: int
     score: float
     salon: str
-    area: str
+    town: str
     phone: str
     source: str
     reasons: str
+    address: str = ""
+    revenue: str = ""
+    result: str = ""
 
 
 def export_call_list(
@@ -64,9 +67,12 @@ def export_call_list(
             "Rang": row.rank,
             "Poäng": row.score,
             "Salong": row.salon,
-            "Område": row.area,
+            "Adress": row.address,
+            "Ort": row.town,
             "Telefon": row.phone,
             "Källa": row.source,
+            "Omsättning": row.revenue,
+            "Resultat": row.result,
             "Varför vi ringer": row.reasons,
             "Utfall": None,
             "Kommentar": None,
