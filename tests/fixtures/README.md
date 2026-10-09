@@ -10,7 +10,7 @@ av testerna för `callable_salon` (T1-05) och av Team 2 tills riktig data finns.
 | `ground_truth.csv` | `has_empty_chairs` per normaliserat orgnr + cfar. **Läses BARA av simuleringen (T2-05), aldrig av ingest eller poängsättning.** |
 | `scb/` | Inspelade, anonymiserade svar från SCB:s nya API (T1-09). Beskrivs i `docs/scb-fields.md`. Läses av adapter-testerna (T1-06). |
 | `financials.csv` | Påhittade årsredovisningsvärden (T1-12), kolumnerna i `FINANCIAL_CSV_COLUMNS`. En rad per (orgnr, räkenskapsårets slut, key). Läses av `load-seed` in i `financial_fact`. |
-| `bolagsverket/` | Påhittad årsredovisning i iXBRL (T1-13). Läses av `tests/test_ixbrl.py`. |
+| `bolagsverket/` | Påhittad årsredovisning i iXBRL (T1-13) och en påhittad `dokumentlista.json` i samma form som Bolagsverkets API (T1-14). Läses av `tests/test_ixbrl.py` och `tests/test_bolagsverket.py`. |
 
 
 ## Regler

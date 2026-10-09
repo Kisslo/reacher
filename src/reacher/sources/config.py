@@ -22,10 +22,12 @@ LegalFormCode = Annotated[str, StringConstraints(pattern=r"^[0-9]{2}$")]
 IxbrlTag = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][\w-]*:[A-Za-z]\w*$")]
 FactKey = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$")]
 
-# Alla nycklar som koden får läsa. Varje namn ska också stå i .env.example
-# (testas). Bolagsverkets namn läggs till här och där med T1-14.
+# Alla nycklar som koden får läsa. Varje namn ska också stå i .env.example (testas).
 SCB_API_KEY = "SCB_API_KEY"
-API_KEYS: tuple[str, ...] = (SCB_API_KEY,)
+# OAuth2-klientuppgifter från Bolagsverkets utvecklarportal (T1-14). Båda är hemliga.
+BOLAGSVERKET_CLIENT_ID = "BOLAGSVERKET_CLIENT_ID"
+BOLAGSVERKET_CLIENT_SECRET = "BOLAGSVERKET_CLIENT_SECRET"
+API_KEYS: tuple[str, ...] = (SCB_API_KEY, BOLAGSVERKET_CLIENT_ID, BOLAGSVERKET_CLIENT_SECRET)
 
 
 class ScbSettings(BaseModel):

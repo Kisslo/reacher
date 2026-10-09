@@ -120,6 +120,86 @@ def check_sources(config: Path = Path("sources.yaml")) -> None:
         raise typer.Exit(code=1)
 
 
+# Så många företag i rad som får misslyckas innan körningen avbryts. Då är det
+# Bolagsverket eller nätet som är nere, inte ett enskilt företag.
+MAX_FAILURES_IN_A_ROW = 3
+
+
+@app.command("fetch-financials")
+def fetch_financials(db: Path = DEFAULT_DB, config: Path = Path("sources.yaml")) -> None:
+    """Hämta omsättning och resultat från Bolagsverket för ringbara företag (T1-14)."""
+    from reacher.db import connect, migrate
+    from reacher.ingest import (
+        FinancialSummary,
+        financial_candidates,
+        ingest_financials,
+        stored_fiscal_years,
+    )
+    from reacher.sources.bolagsverket import (
+        BolagsverketAuthError,
+        BolagsverketClient,
+        BolagsverketError,
+        BolagsverketSource,
+    )
+    from reacher.sources.config import (
+        BOLAGSVERKET_CLIENT_ID,
+        BOLAGSVERKET_CLIENT_SECRET,
+        MissingApiKeyError,
+        SourcesConfig,
+        api_key,
+    )
+
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
+    settings = SourcesConfig.load(config).bolagsverket
+    try:
+        client = BolagsverketClient(
+            api_key(BOLAGSVERKET_CLIENT_ID), api_key(BOLAGSVERKET_CLIENT_SECRET)
+        )
+    except MissingApiKeyError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from None
+
+    total = FinancialSummary()
+    skipped = in_a_row = 0
+    conn = connect(db)
+    try:
+        migrate(conn)
+        candidates = financial_candidates(conn, settings.annual_report_legal_forms)
+        source = BolagsverketSource(
+            client, candidates, settings.tag_map, settings.years, stored_fiscal_years(conn)
+        )
+        for n, orgnr in enumerate(candidates, start=1):
+            try:
+                # En transaktion per företag: ett avbrott behåller det som redan är
+                # hämtat, och nästa körning hämtar inte om de åren.
+                summary = ingest_financials(conn, source.fetch_company(orgnr, n))
+            except BolagsverketAuthError:
+                raise
+            except BolagsverketError as error:
+                skipped += 1
+                in_a_row += 1
+                typer.echo(f"Företag {n} hoppas över: {error}", err=True)
+                if in_a_row >= MAX_FAILURES_IN_A_ROW:
+                    typer.echo(f"{in_a_row} företag i rad misslyckades, avbryter", err=True)
+                    raise typer.Exit(code=1) from None
+                continue
+            in_a_row = 0
+            total.inserted += summary.inserted
+            total.updated += summary.updated
+            total.unchanged += summary.unchanged
+            total.rejected += summary.rejected
+    except BolagsverketAuthError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from None
+    finally:
+        conn.close()
+    typer.echo(
+        f"{db} ({source.name}): {len(candidates)} företag, {skipped} hoppades över. "
+        f"{total.inserted} nya, {total.updated} ändrade, {total.unchanged} oförändrade, "
+        f"{total.rejected} avvisade finansiella fakta"
+    )
+
+
 @app.command("build-lists")
 def build_lists(week: str, sellers: str, db: Path = DEFAULT_DB) -> None:
     """Poängsätt, filtrera, rangordna och skriv en xlsx per säljare."""

@@ -164,11 +164,13 @@ def test_env_example_lists_every_key_name_and_no_values():
     assert sorted(names) == sorted(API_KEYS)
 
 
-def test_check_sources_reports_the_key_without_showing_it(monkeypatch):
-    monkeypatch.setenv(SCB_API_KEY, FAKE_KEY)
+def test_check_sources_reports_the_keys_without_showing_them(monkeypatch):
+    for name in API_KEYS:
+        monkeypatch.setenv(name, FAKE_KEY)
     result = runner.invoke(app, ["check-sources", "--config", str(COMMITTED_CONFIG)])
     assert result.exit_code == 0
-    assert f"{SCB_API_KEY}: satt" in result.output
+    for name in API_KEYS:
+        assert f"{name}: satt" in result.output
     assert FAKE_KEY not in result.output
 
 

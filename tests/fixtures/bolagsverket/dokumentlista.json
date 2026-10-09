@@ -1,0 +1,28 @@
+{
+  "dokument": [
+    {
+      "dokumentId": "FIKTIV-T114-2023",
+      "filformat": "application/zip",
+      "rapporteringsperiodTom": "2023-04-30",
+      "registreringstidpunkt": "2023-09-14"
+    },
+    {
+      "dokumentId": "FIKTIV-T114-2024",
+      "filformat": "application/zip",
+      "rapporteringsperiodTom": "2024-04-30",
+      "registreringstidpunkt": "2024-09-19"
+    },
+    {
+      "dokumentId": "FIKTIV-T114-2025",
+      "filformat": "application/zip",
+      "rapporteringsperiodTom": "2025-04-30",
+      "registreringstidpunkt": "2025-09-11"
+    },
+    {
+      "dokumentId": "FIKTIV-T114-2026",
+      "filformat": "application/zip",
+      "rapporteringsperiodTom": "2026-04-30",
+      "registreringstidpunkt": "2026-09-17"
+    }
+  ]
+}
