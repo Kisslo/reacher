@@ -10,6 +10,7 @@ av testerna för `callable_salon` (T1-05) och av Team 2 tills riktig data finns.
 | `ground_truth.csv` | `has_empty_chairs` per normaliserat orgnr + cfar. **Läses BARA av simuleringen (T2-05), aldrig av ingest eller poängsättning.** |
 | `scb/` | Inspelade, anonymiserade svar från SCB:s nya API (T1-09). Beskrivs i `docs/scb-fields.md`. Läses av adapter-testerna (T1-06). |
 | `financials.csv` | Påhittade årsredovisningsvärden (T1-12), kolumnerna i `FINANCIAL_CSV_COLUMNS`. En rad per (orgnr, räkenskapsårets slut, key). Läses av `load-seed` in i `financial_fact`. |
+| `bolagsverket/` | Påhittad årsredovisning i iXBRL (T1-13). Läses av `tests/test_ixbrl.py`. |
 
 
 ## Regler
@@ -127,3 +128,20 @@ Dokument-id:n (`FIKTIV-...`) är påhittade; en rapport täcker ofta två år.
 | Saxateljén | `5560009606` | Omsättning exakt 500 000 (nära Team 2:s startantagande för `low_revenue`), inget dokument-id |
 | Felaktiga AB | `5560004046` | OGILTIGT orgnr -> avvisas |
 | Kamgården och övriga | — | AB utan årsredovisning: inga rader. Enskilda firmor har aldrig några |
+
+## Årsredovisning (T1-13)
+
+`bolagsverket/arsredovisning_fiktiv.xhtml` är en påhittad K2-rapport med samma struktur
+som en riktig från Bolagsverket, kortad. Fiktiva Saxen AB, `559999-0016`, brutet
+räkenskapsår (1 maj–30 april).
+
+| Vad | Varför det finns |
+|---|---|
+| Nettoomsättning för 4 år i flerårsöversikten | En rapport täcker fler än 3 år |
+| Nettoomsättning igen i resultaträkningen, samma värden | Dubbletter blir ett värde |
+| Årets resultat 2024/25 med `sign="-"` och ett `-` före taggen | Bara `sign` avgör tecknet |
+| `AretsResultatEgetKapital` och `Aktiekapital` (balansdag) | Liknande taggnamn blandas inte ihop; instant-kontext |
+| Soliditet i procent | Fel enhet hoppas över |
+
+Kantfall som inte ser ut som en riktig rapport (tkr, andra talformat, dimensioner,
+motstridiga värden) byggs i `tests/test_ixbrl.py`.

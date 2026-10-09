@@ -18,7 +18,9 @@ bolagsverket:
   # Antal senaste räkenskapsår (D25, D27).
   years: 3
   # iXBRL-tagg -> key i financial_fact. Nytt fält = ny rad här, ingen migration.
-  # Taggnamnen kontrolleras mot en riktig årsredovisning i T1-13.
+  # Nettoomsattning kontrollerad mot en riktig rapport (T1-13). AretsResultat är
+  # inte kontrollerad ännu: exemplet i API_context.md tar slut före Årets resultat.
+  # Kontrolleras på första riktiga rapporten i T1-14.
   tag_map:
     "se-gen-base:Nettoomsattning": revenue
     "se-gen-base:AretsResultat": net_result
