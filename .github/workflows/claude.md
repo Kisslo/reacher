@@ -278,7 +278,7 @@ The list works when salons in the **top 20** respond "Interested" or "Registered
 ## Open questions
 - ~~Is Topseat's in-app search data logged?~~ We have no access to the Topseat DB or search logs, so `unmet_search_demand` is parked (D4).
 - ~~Timing and terms of SCB's new API.~~ Resolved: we use the new API directly (D24).
-- What source, threshold, and points for the "loss-making / low revenue" signal?
+- What source, threshold, and points for the "loss-making / low revenue" signal? Partly answered: source is Bolagsverket (D25), points are 0 (shadow mode, D26). T2-09 starts with `loss_making` = newest fiscal year's `net_result < 0` and `low_revenue` = newest revenue below 500 000 kr (*assumption*). Real thresholds and points come from T2-07.
 - ~~Cost of phone numbers / MVP phone source.~~ Phone numbers come with the free SCB API (D9).
 - ~~Old SCB API fields.~~ It has legal form, F-skatt, VAT, employer status and reklamspärr (D10).
 - ~~NIX unknown status / where it lives, GDPR orgnr, existing customers.~~ Resolved as D11, D12 and D13.

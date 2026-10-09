@@ -8,7 +8,7 @@ from datetime import date
 
 from reacher.config import ScoringConfig
 from reacher.db import now
-from reacher.scoring import SalonFacts, Score, score_salon
+from reacher.scoring import FiscalYear, SalonFacts, Score, fiscal_years_by_orgnr, score_salon
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,32 +56,35 @@ class BuiltList:
     skipped_without_phone: int
 
 
-def _format_period_end(period_end: str) -> str:
-    year, month, day = (int(part) for part in period_end.split("-"))
-    if (month, day) == (12, 31):
-        return str(year)
-    return f"{year - 1}/{str(year)[-2:]}"
+def _format_period_end(period_end: date) -> str:
+    if (period_end.month, period_end.day) == (12, 31):
+        return str(period_end.year)
+    return f"{period_end.year - 1}/{str(period_end.year)[-2:]}"
 
 
 def _format_financial_value(value: int) -> str:
     return f"{value:,}".replace(",", " ") + " kr"
 
 
-def _financial_lines(
-    rows: Sequence[sqlite3.Row],
-) -> tuple[str, str]:
-    values_by_key: dict[str, list[str]] = {"revenue": [], "net_result": []}
-    for row in rows:
-        key = row["key"]
-        if key in values_by_key:
-            values_by_key[key].append(
-                f"{_format_period_end(row['period_end'])}: {_format_financial_value(row['value'])}"
-            )
-    return "\n".join(values_by_key["revenue"]), "\n".join(values_by_key["net_result"])
+def _financial_lines(fiscal_years: Sequence[FiscalYear]) -> tuple[str, str]:
+    """Omsättning and Resultat cells: one line per fiscal year that has the value."""
+
+    def lines(values: list[tuple[date, int | None]]) -> str:
+        return "\n".join(
+            f"{_format_period_end(period_end)}: {_format_financial_value(value)}"
+            for period_end, value in values
+            if value is not None
+        )
+
+    return (
+        lines([(year.period_end, year.revenue) for year in fiscal_years]),
+        lines([(year.period_end, year.net_result) for year in fiscal_years]),
+    )
 
 
 def _rank_callable_salons(
     rows: Sequence[sqlite3.Row],
+    fiscal_years: dict[str, tuple[FiscalYear, ...]],
     config: ScoringConfig,
     built_on: date,
 ) -> tuple[list[RankedSalon], int]:
@@ -94,17 +97,18 @@ def _rank_callable_salons(
             skipped_without_phone += 1
             continue
 
-        facts = SalonFacts.from_row(row)
+        facts = SalonFacts.from_row(row, fiscal_years.get(row["orgnr"], ()))
+        revenue, result = _financial_lines(facts.fiscal_years)
         ranked.append(
             RankedSalon(
                 salon_id=facts.salon_id,
                 name=row["name"],
-                address=row["address"],
+                address=", ".join(part for part in (row["street"], row["postal_code"]) if part),
                 town=row["city"] or "",
                 phone=phone,
                 source=row["phone_source_url"] or "",
-                revenue=row["revenue"],
-                result=row["result"],
+                revenue=revenue,
+                result=result,
                 score=score_salon(facts, config, built_on),
             )
         )
@@ -124,7 +128,8 @@ def build_call_lists(
 
     ``callable_salon`` is the eligibility source queried here. Migration 004
     exposes ``salon.*``; phone details are selected from the first phone
-    contact for each eligible salon.
+    contact for each eligible salon. Financial facts are read per orgnr from
+    Team 1's ``latest_financial_fact`` view, never from ``financial_fact``.
     """
     normalized_sellers = tuple(seller.strip() for seller in sellers if seller.strip())
     if not normalized_sellers:
@@ -139,29 +144,19 @@ def build_call_lists(
         "(SELECT value FROM contact WHERE salon_id = callable.id AND kind = 'phone' "
         "ORDER BY id LIMIT 1) AS phone, "
         "(SELECT source_url FROM contact WHERE salon_id = callable.id AND kind = 'phone' "
-        "ORDER BY id LIMIT 1) AS phone_source_url, "
-        "(SELECT group_concat(period_end || '|' || key || '|' || value, char(10)) "
-        " FROM (SELECT period_end, key, value FROM latest_financial_fact "
-        "       WHERE orgnr = callable.orgnr ORDER BY period_end DESC, key)) "
-        "AS financial_values "
+        "ORDER BY id LIMIT 1) AS phone_source_url "
         "FROM callable_salon AS callable ORDER BY callable.id"
     ).fetchall()
-    enriched_rows: list[dict[str, object]] = []
-    for source_row in callable_rows:
-        financial_rows = [
-            {"period_end": period_end, "key": key, "value": int(value)}
-            for period_end, key, value in (
-                item.split("|") for item in (source_row["financial_values"] or "").splitlines()
-            )
-        ]
-        revenue, result = _financial_lines(financial_rows)
-        address_parts = [source_row["street"], source_row["postal_code"]]
-        row = dict(source_row)
-        row["address"] = ", ".join(part for part in address_parts if part)
-        row["revenue"] = revenue
-        row["result"] = result
-        enriched_rows.append(row)
-    ranked, skipped_without_phone = _rank_callable_salons(enriched_rows, config, built_on)
+    # One read feeds both the financial signals and the Omsättning/Resultat cells.
+    fiscal_years = fiscal_years_by_orgnr(
+        conn.execute(
+            "SELECT orgnr, period_end, key, value FROM latest_financial_fact "
+            "WHERE orgnr IN (SELECT orgnr FROM callable_salon)"
+        )
+    )
+    ranked, skipped_without_phone = _rank_callable_salons(
+        callable_rows, fiscal_years, config, built_on
+    )
     created_at = now()
     built: list[BuiltList] = []
 
