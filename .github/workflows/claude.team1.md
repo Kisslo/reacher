@@ -19,6 +19,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | Team 2's financial view `latest_financial_fact` (3 latest fiscal years per orgnr, D34) | migration 007 + `tests/test_financials.py` |
 | SCB field documentation | `docs/scb-fields.md` (T1-09) |
 | iXBRL parser: annual report xhtml → (period_end, key, value) | `src/reacher/sources/ixbrl.py` (T1-13) |
+| Bolagsverket adapter: candidates, download rules, token/retries | `src/reacher/sources/bolagsverket.py`, `financial_candidates` / `stored_fiscal_years` in `ingest.py`, `scripts/bolagsverket/probe.py` (T1-14, D36) |
 
 ## What we hand over and what we consume
 - **We deliver (Format 1):** `salon`, `contact` and `financial_fact` rows with raw facts only. We never compute points or thresholds (D6). Whether a salon is "loss-making" or has "low revenue" is Team 2's call (D26).
@@ -36,6 +37,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 - **The compliance view lands before the adapter.** T1-10 merges before or together with T1-06. Otherwise every SCB salon is excluded.
 - **Address and municipality come from the workplace (D19).** In the new API, `postAdress` and `kommunSate` belong to the legal unit; for a sole proprietorship that is the owner's home. Since Adress is now in the Excel file (D27), this is a privacy rule, not just a data-quality rule.
 - **SCB first, Bolagsverket second (D25).** Only fetch annual reports for companies that pass `callable_salon` and have a legal form that files annual reports. Never re-download a fiscal year already in `financial_fact`.
+- **Check Bolagsverket's API with the probe, not by guessing.** `uv run --env-file .env python scripts/bolagsverket/probe.py <orgnr>` prints field names and types only. Raw responses go to `bolagsverket_raw/` (gitignored). The URLs, scope and field names are constants at the top of `bolagsverket.py`. On Windows, a TLS error means the root Telia Root CA v2 is missing from the Windows store: see README. Never disable certificate verification.
 - **Financial facts as reported.** Whole SEK, sign kept. A missing value is no row, never 0. `ingest_financials` rejects a missing or non-integer value instead of storing it, and the table's `typeof` check is the last line of defence. If you change `bolagsverket.years`, change the view's `<= 3` in a new migration too (a test checks they match).
 - **Config over code (D29).** SNI codes, municipalities and iXBRL tag names live in `sources.yaml`. Adding a municipality or a financial field should not need a code change.
 - **API keys stay local (D24).** In `.env` (gitignored), never in code, config, tests, logs, GitHub secrets, issues or a pasted error message. `.env.example` lists the names only, and a test fails if it gets a value. Read keys only through `api_key()` in `sources/config.py`: it returns a `SecretStr`, which prints as `**********`. Call `.get_secret_value()` in one place only, where the request header is built, and never put a key in a URL. Check your setup with `uv run --env-file .env reacher check-sources`. If a key is ever committed, rotate it: deleting the commit is not enough.
@@ -67,7 +69,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | T1-12 | [#49](https://github.com/Kisslo/reacher/issues/49) | `financial_fact` table, source shape and fixtures | 5 | Done |
 | T1-13 | [#50](https://github.com/Kisslo/reacher/issues/50) | Parse revenue and result from annual reports (iXBRL) | 5 | Done |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
-| T1-14 | [#51](https://github.com/Kisslo/reacher/issues/51) | Bolagsverket adapter | 6 | Blocked: Bolagsverket context |
+| T1-14 | [#51](https://github.com/Kisslo/reacher/issues/51) | Bolagsverket adapter | 6 | In review |
 | T1-07 | [#23](https://github.com/Kisslo/reacher/issues/23) | Handle salons that disappear from SCB | 7–8 | Todo |
 
 The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
@@ -85,8 +87,14 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 - **Next up:** T1-06 (SCB adapter).
 - **Open:** `se-gen-base:AretsResultat` not verified on a real report (sample truncated); moved to T1-14.
 
+*Session 2026-10-09 (T1-14)*
+- **In review:** T1-14 (#51): `reacher fetch-financials`; `BolagsverketClient` (OAuth2, 1 req/s, retries, fails fast on TLS certificate errors) and `BolagsverketSource` in `sources/bolagsverket.py`; candidates from `callable_salon` (D25); newest report wins (D36). 31 tests, no network.
+- **Next up:** T1-06 (SCB adapter): `fetch-financials` has nothing real to fetch until real salons are in the DB.
+- **Verified with the probe:** token, `dokumentlista` fields (same shape as the fixture), zip with one xhtml report, and both `Nettoomsattning` and `AretsResultat` on a real report.
+- **Open:** annual-report legal forms still `49` only (assumption). Windows machines may need the Telia Root CA v2 fix (README).
+
 ## Team 1 open questions
 See the shared open questions in `claude.md`. T1-09 answered the workplace endpoint, the `anstKl` scale, SCB Omsättning and the JSON types (`docs/scb-fields.md`). New from T1-09: workplace status (`aeStat`), Bolagsverket status (`bolStat`), phone coverage and the owner's name, see the shared open questions.
 
 - **Annual-report legal forms (T1-11 → T1-14):** `sources.yaml` starts with `49` (AB) only. *Assumption.* Check `31` (HB/KB) and others when Bolagsverket's context arrives.
-- **Net result tag (T1-11 → T1-13 → T1-14):** `tag_map` uses `se-gen-base:AretsResultat`. The sample in `API_context.md` only shows `AretsResultatEgetKapital` and `ResultatEfterFinansiellaPoster`, so verify against a real report. T1-13 verified `Nettoomsattning` only: the sample is truncated before Årets resultat in the income statement. Check on the first real report in T1-14.
+- ~~**Net result tag (T1-11 → T1-13 → T1-14):**~~ Verified on a real report in T1-14: the probe found `se-gen-base:AretsResultat` for both fiscal years in the report.

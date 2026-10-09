@@ -26,6 +26,23 @@ uv run --env-file .env reacher check-sources
 värdena. Den anropar inga API:er. Vad som hämtas (SNI-koder, kommuner) ändras i
 `sources.yaml`, inte i koden.
 
+Finansiella fakta från Bolagsverket (T1-14) hämtas för ringbara aktiebolag i databasen.
+Årsredovisningar som redan finns hämtas inte igen:
+
+```sh
+uv run --env-file .env reacher fetch-financials
+```
+
+På Windows kan Bolagsverket ge `TLS-certifikatet kunde inte verifieras`. Windows saknar
+då rotcertifikatet Telia Root CA v2. Öppna https://gw.api.bolagsverket.se i Edge en gång,
+eller lägg till i din egen `.env`:
+
+```
+SSL_CERT_FILE="C:/Program Files/Git/mingw64/etc/ssl/certs/ca-bundle.crt"
+```
+
+Stäng aldrig av certifikatverifieringen: då kan nyckeln avlyssnas.
+
 ## Fredagsdemo (J-03)
 
 Hela loopen på testdatan i `tests/fixtures/`: bygg listor, simulera samtal, läs

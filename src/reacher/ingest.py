@@ -14,12 +14,15 @@ ingest_financials (T1-12) upsertar RawFinancial i financial_fact:
 - Saknat värde eller ett värde som inte är hela kronor -> avvisas, aldrig 0.
 - Samma värde igen -> raden rörs inte, så en omkörning ger samma databas.
 
+financial_candidates och stored_fiscal_years (T1-14) säger vad Bolagsverket-adaptern
+ska hämta: ringbara företag (D25) och de räkenskapsår som redan finns.
 """
 
 import logging
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from datetime import date
 
 from reacher.db import now as utc_now
 from reacher.normalize import normalize_orgnr, normalize_phone
@@ -199,3 +202,30 @@ def ingest_financials(
             else:
                 summary.updated += 1
     return summary
+
+
+def financial_candidates(conn: sqlite3.Connection, legal_forms: Sequence[str]) -> list[str]:
+    """Orgnr som får sina årsredovisningar hämtade (D25): ringbara enligt
+    callable_salon och med en juridisk form i bolagsverket.annual_report_legal_forms.
+
+    Läser vyn vid körningen, så en spärr som importerats efter ingest gäller direkt.
+    DISTINCT: ett företag med fyra salonger har en årsredovisning.
+    """
+    if not legal_forms:
+        return []
+    # Platshållarna byggs av antalet former, aldrig av data. Koderna går som parametrar.
+    placeholders = ", ".join("?" for _ in legal_forms)
+    rows = conn.execute(
+        f"SELECT DISTINCT orgnr FROM callable_salon WHERE legal_form IN ({placeholders}) "
+        "ORDER BY orgnr",
+        list(legal_forms),
+    )
+    return [r["orgnr"] for r in rows]
+
+
+def stored_fiscal_years(conn: sqlite3.Connection) -> dict[str, set[date]]:
+    """Räkenskapsår per orgnr som redan finns i financial_fact. De hämtas inte igen."""
+    years: dict[str, set[date]] = {}
+    for r in conn.execute("SELECT DISTINCT orgnr, period_end FROM financial_fact"):
+        years.setdefault(r["orgnr"], set()).add(date.fromisoformat(r["period_end"]))
+    return years

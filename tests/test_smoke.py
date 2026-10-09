@@ -13,6 +13,7 @@ def test_help_lists_every_command():
         "load-seed",
         "ingest",
         "check-sources",
+        "fetch-financials",
         "build-lists",
         "import-outcomes",
         "report",
