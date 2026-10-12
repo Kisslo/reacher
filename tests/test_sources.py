@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from pydantic import SecretStr
 
 from reacher.sources.base import (
     CSV_COLUMNS,
@@ -12,9 +13,13 @@ from reacher.sources.base import (
     SalonSource,
 )
 from reacher.sources.csv_source import CsvSource
-from reacher.sources.scb import ScbApiSource
+from reacher.sources.scb import ScbApiSource, ScbClient
 
-SOURCES = [ScbApiSource(), CsvSource(Path(__file__).parent / "fixtures")]
+# Att skapa klienten anropar inget, så ingen nyckel eller nätverk behövs.
+SOURCES = [
+    ScbApiSource(ScbClient(SecretStr("test")), ["96210"], ["0180"]),
+    CsvSource(Path(__file__).parent / "fixtures"),
+]
 
 
 @pytest.mark.parametrize("source", SOURCES, ids=lambda s: s.name)
@@ -59,11 +64,6 @@ def test_signal_csv_columns_link_to_salon_and_mirror_the_table():
         "source_url",
         "observed_at",
     )
-
-
-def test_scb_stub_fails_loudly():
-    with pytest.raises(NotImplementedError):
-        next(iter(ScbApiSource().fetch()))
 
 
 COMPLIANCE_FIELDS = (

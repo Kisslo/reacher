@@ -81,6 +81,7 @@ def ingest(
     source: str = "csv",
     path: Path | None = None,  # mapp med salons.csv och signals.csv
     db: Path = DEFAULT_DB,
+    config: Path = Path("sources.yaml"),  # bara för scb
 ) -> None:
     """Hämta salonger från en källa och upserta dem."""
     if source == "csv":
@@ -90,11 +91,41 @@ def ingest(
             raise typer.BadParameter("csv-källan kräver --path", param_hint="--path")
         _run_ingest(CsvSource(path), db)
     elif source == "scb":
-        from reacher.sources.scb import ScbApiSource
-
-        _run_ingest(ScbApiSource(), db)  # kraschar tills T1-06 (#22) finns
+        _ingest_scb(db, config)
     else:
         raise typer.BadParameter(f"okänd källa: {source}", param_hint="--source")
+
+
+def _ingest_scb(db: Path, config: Path) -> None:
+    """SCB:s nya API (T1-06). Skriver bara antal, aldrig vem (D24)."""
+    from datetime import datetime
+
+    from reacher.sources.config import SCB_API_KEY, MissingApiKeyError, SourcesConfig, api_key
+    from reacher.sources.scb import ScbApiSource, ScbClient, ScbError, in_maintenance_window
+
+    settings = SourcesConfig.load(config).scb
+    try:
+        client = ScbClient(api_key(SCB_API_KEY))
+    except MissingApiKeyError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from None
+    if in_maintenance_window(datetime.now().astimezone()):
+        typer.echo("SCB laddar data 04:00-04:30. Försök igen efter 04:30.", err=True)
+        raise typer.Exit(code=1)
+
+    source = ScbApiSource(client, settings.sni_codes, settings.municipalities)
+    try:
+        _run_ingest(source, db)
+    except ScbError as error:
+        # ingest är en enda transaktion, så ett avbrott sparar ingenting.
+        typer.echo(f"{error}. Inget sparades.", err=True)
+        raise typer.Exit(code=1) from None
+    s = source.stats
+    typer.echo(
+        f"SCB: {s.listed} arbetsställen i SNI {', '.join(settings.sni_codes)}, "
+        f"{s.kept} i kommun {', '.join(settings.municipalities)}, "
+        f"{s.companies} företag, {s.with_phone} av {s.kept} med telefonnummer"
+    )
 
 
 @app.command("check-sources")

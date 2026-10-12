@@ -20,6 +20,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | SCB field documentation | `docs/scb-fields.md` (T1-09) |
 | iXBRL parser: annual report xhtml → (period_end, key, value) | `src/reacher/sources/ixbrl.py` (T1-13) |
 | Bolagsverket adapter: candidates, download rules, token/retries | `src/reacher/sources/bolagsverket.py`, `financial_candidates` / `stored_fiscal_years` in `ingest.py`, `scripts/bolagsverket/probe.py` (T1-14, D36) |
+| SCB adapter: pagination, municipality filter, field mapping, key and retries | `src/reacher/sources/scb.py`, `reacher ingest --source scb` (T1-06, D37) |
 
 ## What we hand over and what we consume
 - **We deliver (Format 1):** `salon`, `contact` and `financial_fact` rows with raw facts only. We never compute points or thresholds (D6). Whether a salon is "loss-making" or has "low revenue" is Team 2's call (D26).
@@ -65,11 +66,11 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | T1-11 | [#48](https://github.com/Kisslo/reacher/issues/48) | Source config and local API keys | 4 | Done |
 | T1-10 | [#47](https://github.com/Kisslo/reacher/issues/47) | New-API compliance fields, estates and active status | 4 | Done |
 | J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Todo, Team 1 signs off the Adress rule |
-| T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (new API) | 5 | Todo |
+| T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (new API) | 5 | In review |
 | T1-12 | [#49](https://github.com/Kisslo/reacher/issues/49) | `financial_fact` table, source shape and fixtures | 5 | Done |
 | T1-13 | [#50](https://github.com/Kisslo/reacher/issues/50) | Parse revenue and result from annual reports (iXBRL) | 5 | Done |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
-| T1-14 | [#51](https://github.com/Kisslo/reacher/issues/51) | Bolagsverket adapter | 6 | In review |
+| T1-14 | [#51](https://github.com/Kisslo/reacher/issues/51) | Bolagsverket adapter | 6 | Done |
 | T1-07 | [#23](https://github.com/Kisslo/reacher/issues/23) | Handle salons that disappear from SCB | 7–8 | Todo |
 
 The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
@@ -92,6 +93,11 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 - **Next up:** T1-06 (SCB adapter): `fetch-financials` has nothing real to fetch until real salons are in the DB.
 - **Verified with the probe:** token, `dokumentlista` fields (same shape as the fixture), zip with one xhtml report, and both `Nettoomsattning` and `AretsResultat` on a real report.
 - **Open:** annual-report legal forms still `49` only (assumption). Windows machines may need the Telia Root CA v2 fix (README).
+
+*Session 2026-10-12 (T1-06)*
+- **In review:** T1-06 (#22): `ScbApiSource` + `ScbClient` in `sources/scb.py`, `reacher ingest --source scb`. Cursor pagination, workplace-municipality filter (D19), one JE call per company, codes as text (D18), Swedish dates (`tzdata`), retries like D36 (D37). 40 tests, no network.
+- **Measured:** 3,625 salons in 0180 (0 rejected), 334 with a phone (9 %), 3,324 callable, 304 callable with a phone.
+- **Next up:** J-04 (first real list), T1-07.
 
 ## Team 1 open questions
 See the shared open questions in `claude.md`. T1-09 answered the workplace endpoint, the `anstKl` scale, SCB Omsättning and the JSON types (`docs/scb-fields.md`). New from T1-09: workplace status (`aeStat`), Bolagsverket status (`bolStat`), phone coverage and the owner's name, see the shared open questions.

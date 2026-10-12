@@ -26,6 +26,14 @@ uv run --env-file .env reacher check-sources
 värdena. Den anropar inga API:er. Vad som hämtas (SNI-koder, kommuner) ändras i
 `sources.yaml`, inte i koden.
 
+Salonger från SCB (T1-06) hämtas för SNI-koderna och kommunerna i `sources.yaml`.
+Använd en egen databas så att riktig data inte blandas med fixtures. Kör inte
+04:00–04:30, då laddar SCB data:
+
+```sh
+uv run --env-file .env reacher ingest --source scb --db reacher_scb.db
+```
+
 Finansiella fakta från Bolagsverket (T1-14) hämtas för ringbara aktiebolag i databasen.
 Årsredovisningar som redan finns hämtas inte igen:
 
