@@ -155,6 +155,14 @@ Det finns också ett filter, `/juridiskaenheter/omsattningsklass/{kod}`. Variabe
 - **Fel:** 429, 500 och 503 ger backoff och nytt försök (tenacity). 401 avbryter direkt, för då är nyckeln fel. Kör inte 04:00–04:30.
 - **Samma `limit`** genom hela pagineringen.
 
+## Beslutat i T1-06 (D37)
+
+- HTTP via stdlib `urllib` med samma omförsök som Bolagsverket-adaptern (D36), inte httpx/tenacity.
+- `tzdata` är ett nytt beroende: utan det hittar `zoneinfo` inte `Europe/Stockholm` på Windows.
+- 4 anrop i sekunden är ett antagande (gränsen är inte dokumenterad). 429 ger backoff.
+- Kommandot vägrar starta 04:00–04:30.
+- **Telefontäckning (mätt 2026-10-12):** 334 av 3 625 salonger i 0180 (9 %) har telefonnummer i SCB. 3 324 är ringbara, varav 304 med telefon. D9 håller inte: se öppna frågor i claude.md.
+
 ## Inspelade svar (`tests/fixtures/scb/`)
 
 Formen är kopierad från riktiga svar (2026-10-07), värdena är påhittade. Formen kontrollerades med `scripts/scb/probe.py` och `scripts/scb/compare.py`. `tests/test_scb_fixtures.py` låser formen och kontrollerar att inget ser riktigt ut.

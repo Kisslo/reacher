@@ -852,6 +852,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "typer" },
+    { name = "tzdata" },
 ]
 
 [package.optional-dependencies]
@@ -879,6 +880,7 @@ requires-dist = [
     { name = "tenacity", marker = "extra == 'sources'", specifier = ">=8.3" },
     { name = "trafilatura", marker = "extra == 'sources'", specifier = ">=1.9" },
     { name = "typer", specifier = ">=0.27.2" },
+    { name = "tzdata", specifier = ">=2026.4" },
 ]
 provides-extras = ["sources"]
 
