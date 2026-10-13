@@ -31,9 +31,10 @@ def load(conn, now=T1):
 
 
 def snapshot(conn):
-    """Allt i salon och contact utom last_seen_at, som ska ändras vid omkörning."""
+    """Allt i salon och contact utom last_seen_at och last_seen_run, som ska
+    ändras vid omkörning."""
     salons = [
-        {k: r[k] for k in r.keys() if k != "last_seen_at"}
+        {k: r[k] for k in r.keys() if k not in ("last_seen_at", "last_seen_run")}
         for r in conn.execute("SELECT * FROM salon ORDER BY id")
     ]
     contacts = [dict(r) for r in conn.execute("SELECT * FROM contact ORDER BY id")]

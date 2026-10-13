@@ -34,6 +34,11 @@ Använd en egen databas så att riktig data inte blandas med fixtures. Kör inte
 uv run --env-file .env reacher ingest --source scb --db reacher_scb.db
 ```
 
+Varje ingest är en hel körning (T1-07, D38). En salong som inte finns med i den senaste
+körningen är inte ringbar, men raden ligger kvar och blir ringbar igen om den kommer
+tillbaka. En körning som kraschar eller inte ger några giltiga salonger sparas inte.
+Efter migration 009 är inga salonger i en befintlig databas ringbara förrän nästa ingest.
+
 Finansiella fakta från Bolagsverket (T1-14) hämtas för ringbara aktiebolag i databasen.
 Årsredovisningar som redan finns hämtas inte igen:
 

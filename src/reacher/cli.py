@@ -33,6 +33,7 @@ def init_db(db: Path = DEFAULT_DB) -> None:
 def _run_ingest(source: SalonSource, db: Path) -> None:
     """Gemensamt för ingest och load-seed: migrera, läs in, skriv en sammanfattning."""
     from reacher.db import connect, migrate
+    from reacher.ingest import EmptyRunError
     from reacher.ingest import ingest as run_ingest
 
     # Varningar (avvisade poster, ogiltiga nummer) går till stderr.
@@ -40,12 +41,16 @@ def _run_ingest(source: SalonSource, db: Path) -> None:
     conn = connect(db)
     try:
         migrate(conn)  # så att en tom .db-fil fungerar direkt
-        summary = run_ingest(conn, source.fetch())
+        summary = run_ingest(conn, source.fetch(), source=source.name)
+    except EmptyRunError as error:
+        typer.echo(f"{db} ({source.name}): {error}", err=True)
+        raise typer.Exit(code=1) from None
     finally:
         conn.close()
     typer.echo(
         f"{db} ({source.name}): {summary.inserted} nya, {summary.updated} uppdaterade, "
-        f"{summary.rejected} avvisade, {summary.invalid_phones} ogiltiga telefonnummer"
+        f"{summary.rejected} avvisade, {summary.invalid_phones} ogiltiga telefonnummer, "
+        f"{summary.gone} försvunna sedan förra körningen"
     )
 
 

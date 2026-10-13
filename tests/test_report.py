@@ -49,15 +49,19 @@ def conn(db_path):
 
 
 def add_salons(conn, count, *, employee_class=None):
+    # callable_salon visar bara salonger från den senaste ingest-körningen (D38).
+    conn.execute(
+        "INSERT OR IGNORE INTO ingest_run (id, source, started_at) VALUES (1, 'test', '2026-09-28')"
+    )
     for number in range(count):
         cursor = conn.execute(
             "INSERT INTO salon "
             "(orgnr, name, employee_class, legal_form, ftax_status, vat_status, "
             "employer_status, company_status, workplace_status, ad_block_type, "
             "phone_block_type, workplace_ad_block_type, workplace_phone_block_type, "
-            "first_seen_at, last_seen_at) "
+            "first_seen_at, last_seen_at, last_seen_run) "
             "VALUES (?, ?, ?, '49', '1', '1', '1', '1', '1', '1', '1', '1', '1', "
-            "'2026-09-28', '2026-09-28')",
+            "'2026-09-28', '2026-09-28', 1)",
             (f"orgnr-{employee_class}-{number}", f"Salon {number}", employee_class),
         )
         conn.execute(

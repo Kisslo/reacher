@@ -157,9 +157,10 @@ def test_block_on_another_orgnr_changes_nothing(seeded):
 
 # --- En regel i taget (acceptanskriterierna i #14 och #47) -------------------
 
-# Utgångsläge: ett verksamt AB utan spärrar, som är ringbart. Varje fall ändrar
-# bara de fält som testet handlar om.
+# Utgångsläge: ett verksamt AB utan spärrar, sett i den senaste körningen, som
+# är ringbart. Varje fall ändrar bara de fält som testet handlar om.
 CALLABLE_AB = {
+    "last_seen_run": 1,  # test_rule skapar körning 1 (D38)
     "legal_form": "49",
     "ftax_status": "1",
     "vat_status": "1",
@@ -241,11 +242,14 @@ CASES = [
     ("legal-form-unknown-code", {"legal_form": "77", **NOTHING_REGISTERED}, False),
     ("hb-nothing-known", {"legal_form": "31", **NOTHING_REGISTERED}, True),
     ("sole-prop-phone-blocked", {"legal_form": "10", "phone_block_type": "2"}, False),
+    # D38: aldrig sedd i en körning. Försvunna salonger testas i test_ingest_run.py.
+    ("never-seen-in-a-run", {"last_seen_run": None}, False),
 ]
 
 
 @pytest.mark.parametrize(("changes", "expected"), [c[1:] for c in CASES], ids=[c[0] for c in CASES])
 def test_rule(conn, changes, expected):
+    conn.execute("INSERT INTO ingest_run (id, source, started_at) VALUES (1, 'test', ?)", (NOW,))
     fields = {**CALLABLE_AB, **changes}
     conn.execute(
         "INSERT INTO salon (orgnr, name, first_seen_at, last_seen_at, "
