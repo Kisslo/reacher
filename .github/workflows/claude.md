@@ -43,6 +43,7 @@ At the source boundary, the shape is `RawSalon` / `RawSignal` in `src/reacher/so
 | `signals[]` (type, evidence, source_url) | `signal.key`, `signal.evidence`, `signal.source_url` |
 | *(not in draft)* | `salon.cfar` (workplace number: one company can have several salons), `signal.observed_at`, `contact.confidence` |
 | *(new, D25, D34)* revenue and net result per fiscal year | `financial_fact` (`orgnr`, `period_end`, `key`, `value` INTEGER whole SEK, `source_document`, `fetched_at`): one row per company, fiscal year and key (migration 007). Team 2 reads the view `latest_financial_fact`: the 3 latest fiscal years per orgnr, `fiscal_year_rank` 1 = newest |
+| *(new, D38)* ingest runs | `ingest_run` (`id`, `source`, `started_at`, `finished_at`, `salons`, `gone`) and `salon.last_seen_run` (migration 009). Team 2 doesn't read them; `callable_salon` does. A salon inserted by hand in a test needs a run row and `last_seen_run` to be callable |
 
 Rules:
 - Team 1 delivers raw facts only. Team 2 decides the thresholds and points, so tuning the scoring never requires changes to Team 1's code.
@@ -180,6 +181,7 @@ You don't remember previous conversations. At the end of each working session, w
 | D35 | 2026-10-09 | **Decided (Team 1).** The iXBRL parser (T1-13) uses Python's stdlib `xml.etree.ElementTree`, not lxml: iXBRL is XHTML, so it is valid XML, and no new dependency is needed. It reads only `tag_map` tags and applies `scale` and the `sign` attribute (never a minus in the text, never `decimals`). It keeps only `iso4217:SEK`, whole kronor and contexts without dimensions, and returns every year in the report. Equal duplicates become one value; conflicting duplicates give no value. Anything it can't read safely gives no value and a warning with the document id, never 0 and never the orgnr. |
 | D36 | 2026-10-09 | **Decided (Team 1).** Bolagsverket adapter (T1-14): per company, only the `bolagsverket.years` newest reports in `dokumentlista` are considered. A report is downloaded only if its fiscal year isn't in `financial_fact` and a newer report in the same run hasn't already given every `tag_map` key for that year. Facts are kept for those years only, and **the newest report that contains a year wins**, also over a stored value (restated comparison figures; `source_document` shows which report). Documents are unpacked in memory, never written to disk. HTTP through stdlib `urllib` (no new dependency, like D35), at most 1 request/second (limit 60/min), retries with backoff on 429/5xx/network errors, but never on a TLS certificate error. Certificate verification is never disabled. One transaction per company, so a crash keeps what was fetched. Not a Format 1 change. |
 | D37 | 2026-10-12 | **Decided (Team 1).** SCB adapter (T1-06): HTTP through stdlib `urllib` with the same retries and backoff as D36 (429/5xx/network errors, never on a TLS certificate error), not httpx/tenacity as #22 proposed: one way to call APIs and no new HTTP dependency. Adds `tzdata` so `zoneinfo` finds `Europe/Stockholm` on Windows; SCB's UTC timestamps are stored as Swedish dates. 4 requests/s is an assumption (limit undocumented). The command refuses to start 04:00–04:30. Not a Format 1 change. |
+| D38 | 2026-10-13 | **Pending Team 2 sign-off in the PR.** Every saved ingest is a run in `ingest_run`, and each salon stores the run that last delivered it (`salon.last_seen_run`, migration 009). `callable_salon` lets through only salons from the latest run (`max(id)`), per workplace. Reason: a salon SCB no longer delivers has probably closed, changed industry or moved, and its block codes are no longer refreshed, so a new NIX registration would go unseen. The run is written in the same transaction as the salons, so a crashed run leaves nothing behind. A run with no valid salon raises `EmptyRunError` and isn't saved. No run, or `last_seen_run` NULL, means not callable (fail closed). Salons are never deleted. Every ingest is a full snapshot of its source: a partial CSV or a smaller `sources.yaml` scope marks the rest as gone until the next full run. Format 1 change. |
 
 ---
 
@@ -221,6 +223,7 @@ Empty chairs can't be observed directly, so ranking is based on signals. Each si
 5. Estates (legal form `91`, oskiftat dödsbo), regardless of F-skatt, VAT or employer status (D30).
 6. Companies that are not active according to SCB: `ftgStat` must be `1` (D31).
 7. Workplaces that are not active according to SCB, even if the company is: `aeStat` must be `1` (D33).
+8. Workplaces that weren't in the latest ingest run (gone from SCB): `salon.last_seen_run` must be the newest `ingest_run` (D38).
 
 ### Pipeline
 ```mermaid

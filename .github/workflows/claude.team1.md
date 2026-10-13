@@ -20,6 +20,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | SCB field documentation | `docs/scb-fields.md` (T1-09) |
 | iXBRL parser: annual report xhtml → (period_end, key, value) | `src/reacher/sources/ixbrl.py` (T1-13) |
 | Bolagsverket adapter: candidates, download rules, token/retries | `src/reacher/sources/bolagsverket.py`, `financial_candidates` / `stored_fiscal_years` in `ingest.py`, `scripts/bolagsverket/probe.py` (T1-14, D36) |
+| Ingest runs and salons that disappear (D38) | `ingest_run` + `salon.last_seen_run` (migration 009), `ingest()` in `ingest.py`, `tests/test_ingest_run.py` |
 | SCB adapter: pagination, municipality filter, field mapping, key and retries | `src/reacher/sources/scb.py`, `reacher ingest --source scb` (T1-06, D37) |
 
 ## What we hand over and what we consume
@@ -46,6 +47,7 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 - **Real API responses are personal data.** Don't commit them or paste them into issues and PRs. Recorded test responses are anonymised by hand (fictional names, Luhn-valid fake orgnr, fake addresses and phones). `API_context.md` stays local.
 - **No orgnr, no row.** A salon without an orgnr can't be blocked, so it can't enter the database.
 - **Ingest is idempotent.** Running it twice gives the same database. Keep `first_seen_at` and update `last_seen_at`.
+- **Every ingest is a full snapshot (D38).** What a run doesn't deliver is gone and not callable. Never ingest a partial source into a real database. A crashed or empty run is never saved, so it can't make salons disappear.
 - **Data minimisation:** don't store email (Format 1).
 - **No network in tests.**
 - **Fixtures are fictional:** made-up names, orgnr, phone numbers and financials.
@@ -65,13 +67,13 @@ Turn raw register data from SCB and Bolagsverket into clean, deduplicated `salon
 | T1-09 | [#46](https://github.com/Kisslo/reacher/issues/46) | Document the SCB new API fields | 4 | Done |
 | T1-11 | [#48](https://github.com/Kisslo/reacher/issues/48) | Source config and local API keys | 4 | Done |
 | T1-10 | [#47](https://github.com/Kisslo/reacher/issues/47) | New-API compliance fields, estates and active status | 4 | Done |
-| J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Todo, Team 1 signs off the Adress rule |
-| T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (new API) | 5 | In review |
+| J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Done |
+| T1-06 | [#22](https://github.com/Kisslo/reacher/issues/22) | SCB adapter (new API) | 5 | Done |
 | T1-12 | [#49](https://github.com/Kisslo/reacher/issues/49) | `financial_fact` table, source shape and fixtures | 5 | Done |
 | T1-13 | [#50](https://github.com/Kisslo/reacher/issues/50) | Parse revenue and result from annual reports (iXBRL) | 5 | Done |
 | J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
 | T1-14 | [#51](https://github.com/Kisslo/reacher/issues/51) | Bolagsverket adapter | 6 | Done |
-| T1-07 | [#23](https://github.com/Kisslo/reacher/issues/23) | Handle salons that disappear from SCB | 7–8 | Todo |
+| T1-07 | [#23](https://github.com/Kisslo/reacher/issues/23) | Handle salons that disappear from SCB | 7–8 | In review |
 
 The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
 
@@ -98,6 +100,11 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 - **In review:** T1-06 (#22): `ScbApiSource` + `ScbClient` in `sources/scb.py`, `reacher ingest --source scb`. Cursor pagination, workplace-municipality filter (D19), one JE call per company, codes as text (D18), Swedish dates (`tzdata`), retries like D36 (D37). 40 tests, no network.
 - **Measured:** 3,625 salons in 0180 (0 rejected), 334 with a phone (9 %), 3,324 callable, 304 callable with a phone.
 - **Next up:** J-04 (first real list), T1-07.
+
+*Session 2026-10-13 (T1-07)*
+- **In review:** T1-07 (#23): migration 009 (`ingest_run`, `salon.last_seen_run`, `callable_salon` rule 6). `ingest()` records one run per call, counts disappeared salons and raises `EmptyRunError` for runs without valid salons (D38). 12 new tests. Team 2's helpers in `test_lists.py` / `test_report.py` were updated; D38 waits for Team 2 sign-off in the PR.
+- **Next up:** J-04 (first real list). Re-ingest `reacher_scb.db` after merging: migration 009 leaves nothing callable until the next run.
+- **Open:** no guard against a run much smaller than the previous one (e.g. a pagination bug). It fails closed (fewer salons callable) and shows up as a large "försvunna" count.
 
 ## Team 1 open questions
 See the shared open questions in `claude.md`. T1-09 answered the workplace endpoint, the `anstKl` scale, SCB Omsättning and the JSON types (`docs/scb-fields.md`). New from T1-09: workplace status (`aeStat`), Bolagsverket status (`bolStat`), phone coverage and the owner's name, see the shared open questions.

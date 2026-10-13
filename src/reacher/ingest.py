@@ -7,6 +7,9 @@ Regler:
   ad_block_type ska den gamla koden inte ligga kvar: då failar vyn öppet.
 - E-post sparas aldrig (dataminimering, Format 1). RawSalon har inget sådant fält.
 - Signaler skrivs inte: signal-tabellen används inte i MVP:n (D4).
+- Varje ingest är en körning i ingest_run (T1-07, D38). Det källan inte levererar
+  har försvunnit: callable_salon släpper bara igenom den senaste körningens salonger.
+  En körning som kraschar eller inte ger någon giltig salong sparas inte alls.
 
 ingest_financials (T1-12) upsertar RawFinancial i financial_fact:
 - Samma orgnr-regel som för salonger. Ett företag behöver inte ha en salong i
@@ -56,13 +59,16 @@ SALON_FIELDS = (
 # Byggs av konstanta kolumnnamn, aldrig av data. Värdena går som parametrar.
 # ON CONFLICT pekar på uttrycksindexet salon_identity, så att cfar = NULL
 # matchar cfar = NULL. first_seen_at finns inte i DO UPDATE och behåller därför
-# sitt första värde.
+# sitt första värde, även för en salong som försvann och kom tillbaka.
 UPSERT_SALON = f"""
-INSERT INTO salon (orgnr, cfar, {", ".join(SALON_FIELDS)}, first_seen_at, last_seen_at)
-VALUES (:orgnr, :cfar, {", ".join(":" + f for f in SALON_FIELDS)}, :now, :now)
+INSERT INTO salon (
+    orgnr, cfar, {", ".join(SALON_FIELDS)}, first_seen_at, last_seen_at, last_seen_run
+)
+VALUES (:orgnr, :cfar, {", ".join(":" + f for f in SALON_FIELDS)}, :now, :now, :run_id)
 ON CONFLICT (orgnr, IFNULL(cfar, '')) DO UPDATE SET
     {", ".join(f"{f} = excluded.{f}" for f in SALON_FIELDS)},
-    last_seen_at = excluded.last_seen_at
+    last_seen_at = excluded.last_seen_at,
+    last_seen_run = excluded.last_seen_run
 RETURNING id
 """
 
@@ -74,20 +80,37 @@ ON CONFLICT (salon_id, kind, value) DO NOTHING
 """
 
 
+class EmptyRunError(RuntimeError):
+    """Körningen gav inga giltiga salonger. Troligare ett fel hos källan än att
+    alla salonger har stängt, så körningen sparas inte (D38)."""
+
+
 @dataclass
 class Summary:
     inserted: int = 0
     updated: int = 0
     rejected: int = 0
     invalid_phones: int = 0
+    gone: int = 0  # fanns i förra körningen men inte i den här (T1-07)
 
 
-def ingest(conn: sqlite3.Connection, salons: Iterable[RawSalon], now: str | None = None) -> Summary:
-    """Upserta salonger. `now` kan sättas i tester så att tidsstämplarna blir förutsägbara."""
+def ingest(
+    conn: sqlite3.Connection,
+    salons: Iterable[RawSalon],
+    now: str | None = None,
+    source: str = "unknown",
+) -> Summary:
+    """Upserta salonger som en körning i ingest_run. `now` kan sättas i tester så
+    att tidsstämplarna blir förutsägbara. `source` är SalonSource.name."""
     now = now or utc_now()
     summary = Summary()
-    # En transaktion: kraschar källan halvvägs sparas ingenting.
+    # En transaktion: kraschar källan halvvägs sparas ingenting, inte heller
+    # körningen. Salongerna pekar då kvar på förra körningen och är ringbara som förut.
     with conn:
+        run_id = conn.execute(
+            "INSERT INTO ingest_run (source, started_at) VALUES (?, ?) RETURNING id",
+            (source, now),
+        ).fetchone()["id"]
         # Post n = rad n+1 i en CSV-fil (rubriken är rad 1). Loggen visar
         # postnumret, inte orgnr: för en enskild firma är det ett personnummer.
         for n, raw in enumerate(salons, start=1):
@@ -107,6 +130,7 @@ def ingest(conn: sqlite3.Connection, salons: Iterable[RawSalon], now: str | None
                 name=name,
                 registered_at=raw.registered_at.isoformat() if raw.registered_at else None,
                 now=now,
+                run_id=run_id,
             )
 
             exists = conn.execute(
@@ -128,7 +152,29 @@ def ingest(conn: sqlite3.Connection, salons: Iterable[RawSalon], now: str | None
             for kind, value in (("phone", phone), ("website", website)):
                 if value:
                     conn.execute(INSERT_CONTACT, (salon_id, kind, value, now))
+
+        # Räknas i databasen, inte i loopen: en dubblett i källan är en salong.
+        seen = _count_seen_in(conn, run_id)
+        if seen == 0:
+            # Undantaget rullar tillbaka hela transaktionen, även raden i ingest_run.
+            raise EmptyRunError("Körningen gav inga giltiga salonger. Inget sparades.")
+        previous = conn.execute(
+            "SELECT max(id) FROM ingest_run WHERE id < ?", (run_id,)
+        ).fetchone()[0]
+        # Förra körningens salonger som inte fick det nya id:t. Ingen förra körning
+        # (None) ger 0: = NULL är aldrig sant.
+        summary.gone = _count_seen_in(conn, previous)
+        conn.execute(
+            "UPDATE ingest_run SET finished_at = ?, salons = ?, gone = ? WHERE id = ?",
+            (utc_now(), seen, summary.gone, run_id),
+        )
     return summary
+
+
+def _count_seen_in(conn: sqlite3.Connection, run_id: int | None) -> int:
+    """Salonger vars senaste körning är `run_id`."""
+    row = conn.execute("SELECT count(*) FROM salon WHERE last_seen_run = ?", (run_id,))
+    return row.fetchone()[0]
 
 
 # Bara ett nytt värde uppdaterar fetched_at. Ett oförändrat värde hoppas över
