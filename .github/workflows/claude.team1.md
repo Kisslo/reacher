@@ -111,7 +111,8 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 - **Why:** on real reports the Flerårsöversikt gave "olika värden" warnings and, worse, silently wrong values (415 kr, 730 Mkr, tkr-rounded). Before the fix 422 of 2,899 revenue rows were tkr-rounded and 33 were under 10,000 kr.
 - **Measured after re-fetching everything** (`financial_fact` emptied, one full run): 1,062 companies, 5,530 facts, 775 with 3 years in `latest_financial_fact`. The 31 revenue figures under 10,000 kr that remain are what the Resultaträkning says (two spot-checked). A test `build-lists` on a copy of the DB worked.
 - **Next up:** PR for the parser fix, then J-04. Each report now gives 2 years, so a first run downloads about 2 reports per company (~3 requests, ~1 h for 1,375 companies).
-- **Open:** 102 (company, year) pairs have `net_result` but no `revenue`. Probably holding or dormant companies; check the run's warnings to confirm.
+- **Checked:** 102 (company, year) pairs, 62 companies, have `net_result` but no `revenue`. The run had no parser warnings, and 8 sampled reports have no Nettoomsättning line in the Resultaträkning (K2 leaves out empty lines): dormant companies or the year before the start. In half of them the skipped Flerårsöversikt says 0, which used to be stored as `revenue = 0`.
+- **Open (Team 2):** such a year now has no revenue row ("unknown", never 0) instead of 0, so `low_revenue` doesn't fire. Proposal: keep it; Team 2 can treat "`net_result` without `revenue`" as dormant if it helps.
 
 ## Team 1 open questions
 See the shared open questions in `claude.md`. T1-09 answered the workplace endpoint, the `anstKl` scale, SCB Omsättning and the JSON types (`docs/scb-fields.md`). New from T1-09: workplace status (`aeStat`), Bolagsverket status (`bolStat`), phone coverage and the owner's name, see the shared open questions.
