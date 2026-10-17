@@ -308,8 +308,8 @@ class BolagsverketSource:
         if not documents:
             log.info("Företag %d: inga digitala årsredovisningar", n)
             return
-        # Ungefär `years` år bakåt från det senaste räkenskapsåret. Äldre år i
-        # flerårsöversikten sparas inte (D25).
+        # Ungefär `years` år bakåt från det senaste räkenskapsåret. Äldre år, som
+        # jämförelseåret i den äldsta rapporten, sparas inte (D25).
         oldest = documents[0].period_end - timedelta(days=365 * self.years)
         stored = self.stored_years.get(orgnr, set())
         all_keys = set(self.tag_map.values())

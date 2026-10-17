@@ -106,6 +106,13 @@ The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, mil
 - **Next up:** J-04 (first real list). Re-ingest `reacher_scb.db` after merging: migration 009 leaves nothing callable until the next run.
 - **Open:** no guard against a run much smaller than the previous one (e.g. a pagination bug). It fails closed (fewer salons callable) and shows up as a large "försvunna" count.
 
+*Session 2026-10-16–17 (first real `fetch-financials`)*
+- **Done, not yet in a PR:** iXBRL parser fix (D35 amended). The Flerårsöversikt is skipped by heading; duplicates in tkr vs kronor are resolved by `decimals`. 10 new tests in `test_ixbrl.py`, two expectations in `test_bolagsverket.py` updated (2024 revenue now comes from the 2024 report).
+- **Why:** on real reports the Flerårsöversikt gave "olika värden" warnings and, worse, silently wrong values (415 kr, 730 Mkr, tkr-rounded). Before the fix 422 of 2,899 revenue rows were tkr-rounded and 33 were under 10,000 kr.
+- **Measured after re-fetching everything** (`financial_fact` emptied, one full run): 1,062 companies, 5,530 facts, 775 with 3 years in `latest_financial_fact`. The 31 revenue figures under 10,000 kr that remain are what the Resultaträkning says (two spot-checked). A test `build-lists` on a copy of the DB worked.
+- **Next up:** PR for the parser fix, then J-04. Each report now gives 2 years, so a first run downloads about 2 reports per company (~3 requests, ~1 h for 1,375 companies).
+- **Open:** 102 (company, year) pairs have `net_result` but no `revenue`. Probably holding or dormant companies; check the run's warnings to confirm.
+
 ## Team 1 open questions
 See the shared open questions in `claude.md`. T1-09 answered the workplace endpoint, the `anstKl` scale, SCB Omsättning and the JSON types (`docs/scb-fields.md`). New from T1-09: workplace status (`aeStat`), Bolagsverket status (`bolStat`), phone coverage and the owner's name, see the shared open questions.
 

@@ -9,14 +9,22 @@ Regler:
   saknas ger inget värde, aldrig 0.
 - Värdet = texten tolkad enligt format, gånger 10^scale, negativt om sign="-".
   Ett minustecken i texten bredvid taggen är bara layout och räknas inte.
-- decimals anger hur exakt siffran är ("0", "-3", "INF"). Det ändrar aldrig värdet.
+- decimals anger hur exakt siffran är ("0", "-3", "INF"). Det ändrar aldrig värdet,
+  men avgör vilken dubblett som gäller (se nedan).
 - contextRef pekar på en xbrli:context. period_end = endDate för ett räkenskapsår,
   instant för en balansdag. Kontexter med dimensioner (segment/scenario) gäller
   en del av företaget och hoppas över.
 - Bara enheten iso4217:SEK och hela kronor (D25). Allt annat hoppas över med en
   varning, så att ingest aldrig får ett belopp i fel enhet.
-- Samma värde står ofta två gånger (flerårsöversikt och resultaträkning). Lika
-  värden blir ett. Olika värden ger inget värde alls: hellre en lucka än en gissning.
+- Flerårsöversikten läses aldrig. Den är en sammanfattning, ofta i tkr, och i
+  verkliga rapporter ibland fel taggad (text i kr med scale="3", text i tkr med
+  scale="0") eller med en annan siffra än resultaträkningen. Den hittas på sin
+  rubrik och slutar vid nästa kända rubrik (Resultaträkning, Balansräkning ...).
+- Samma värde kan ändå stå flera gånger, t.ex. i en not. Lika värden blir ett. Står
+  ett i tkr (decimals="-3") och ett i kronor gäller det mest exakta, men bara om
+  det avrundade ligger inom en enhet från det (avrundat eller avkortat). Annars,
+  eller om de mest exakta själva skiljer sig, blir det inget värde alls: hellre en
+  lucka än en gissning.
 - Loggar dokument-id, aldrig orgnr. Rapportens xbrli:identifier är orgnr, och för
   en enskild firma ett personnummer.
 
@@ -26,9 +34,10 @@ stoppar "billion laughs".
 """
 
 import logging
+import math
 import re
 import xml.etree.ElementTree as ET
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -59,6 +68,25 @@ ZERO_FORMATS = {"zerodash", "numdash", "fixed-zero"}
 
 _DECIMAL = re.compile(r"[0-9]+(\.[0-9]+)?")
 
+# decimals som tal: math.inf för "INF", None om attributet saknas eller är ogiltigt.
+Precision = int | float | None
+
+# Rubriker som börjar ett avsnitt i en årsredovisning. En text räknas som rubrik om
+# den är kort och börjar med ett av namnen. Bara flerårsöversikten hoppas över; de
+# andra behövs för att veta var den slutar.
+_HEADING = re.compile(
+    r"(flerårsöversikt|flerårsjämförelse|utveckling av företagets verksamhet"
+    r"|förvaltningsberättelse|resultaträkning|balansräkning|förändring(?:ar)? i eget kapital"
+    r"|resultatdisposition|kassaflödesanalys|noter|underskrifter)\b",
+    re.IGNORECASE,
+)
+_HEADING_MAX_LENGTH = 80
+_MULTI_YEAR_OVERVIEW = {
+    "flerårsöversikt",
+    "flerårsjämförelse",
+    "utveckling av företagets verksamhet",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class ReportFact:
@@ -82,8 +110,8 @@ def parse_annual_report(
 ) -> list[ReportFact]:
     """Alla värden för taggarna i tag_map, sorterade på (period_end, key).
 
-    En årsredovisning har oftast med jämförelseår, och flerårsöversikten ofta
-    fyra år. Alla år returneras. Vilka som sparas avgör adaptern och vyn
+    En årsredovisning har oftast med jämförelseår, så resultaträkningen ger två år.
+    Alla år returneras. Vilka som sparas avgör adaptern och vyn
     latest_financial_fact, inte parsern.
     """
     try:
@@ -97,8 +125,8 @@ def parse_annual_report(
     periods = _periods(root)
     sek_units = _sek_units(root)
 
-    found: dict[tuple[date, str], set[int]] = {}
-    for el in root.iter(f"{IX}nonFraction"):
+    found: dict[tuple[date, str], set[tuple[int, Precision]]] = {}
+    for el in _outside_multi_year_overview(root):
         tag = el.get("name", "")
         key = tag_map.get(tag)
         if key is None:
@@ -114,11 +142,12 @@ def parse_annual_report(
                 reason,
             )
             continue
-        found.setdefault((period_end, key), set()).add(value)
+        found.setdefault((period_end, key), set()).add((value, _precision(el)))
 
     facts = []
     for (period_end, key), values in sorted(found.items()):
-        if len(values) > 1:
+        value = _resolve(values)
+        if value is None:
             log.warning(
                 "Dokument %s: %s för %s har olika värden, inget sparas",
                 document_id,
@@ -126,12 +155,70 @@ def parse_annual_report(
                 period_end,
             )
             continue
-        facts.append(ReportFact(period_end, key, values.pop()))
+        facts.append(ReportFact(period_end, key, value))
 
     for key in sorted(set(tag_map.values()) - {f.key for f in facts}):
         # Normalt för t.ex. ett holdingbolag utan omsättning. Ingen rad, aldrig 0.
         log.info("Dokument %s: %s saknas", document_id, key)
     return facts
+
+
+def _outside_multi_year_overview(root: ET.Element) -> Iterator[ET.Element]:
+    """Alla ix:nonFraction i dokumentordning, utom de under rubriken Flerårsöversikt."""
+    in_overview = False
+
+    def heading(text: str | None) -> None:
+        nonlocal in_overview
+        text = " ".join((text or "").split())
+        match = _HEADING.match(text) if len(text) <= _HEADING_MAX_LENGTH else None
+        if match:
+            in_overview = match.group(1).lower() in _MULTI_YEAR_OVERVIEW
+
+    def walk(el: ET.Element) -> Iterator[ET.Element]:
+        heading(el.text)
+        if el.tag == f"{IX}nonFraction" and not in_overview:
+            yield el
+        for child in el:
+            yield from walk(child)
+            heading(child.tail)
+
+    return walk(root)
+
+
+def _precision(el: ET.Element) -> Precision:
+    """decimals som tal: "INF" = exakt, "-3" = tusental. None om det saknas eller är ogiltigt."""
+    decimals = el.get("decimals", "").strip()
+    if decimals == "INF":
+        return math.inf
+    try:
+        return int(decimals)
+    except ValueError:
+        return None
+
+
+def _resolve(values: set[tuple[int, Precision]]) -> int | None:
+    """Ett värde ur dubbletterna för ett (år, key), eller None om de inte stämmer överens.
+
+    Den mest exakta siffran gäller om de mindre exakta ligger inom en enhet från den:
+    211 tkr stämmer med 211 199 kr (avrundat eller avkortat), 212 tkr gör det inte.
+    """
+    if len({value for value, _ in values}) == 1:
+        return next(iter(values))[0]
+    known = [(value, precision) for value, precision in values if precision is not None]
+    if not known:
+        return None
+    best_precision = max(precision for _, precision in known)
+    best = {value for value, precision in known if precision == best_precision}
+    if len(best) > 1:
+        return None
+    (winner,) = best
+    for value, precision in values:
+        if value == winner:
+            continue
+        # Utan decimals vet vi inte hur siffran avrundats: den måste vara exakt lika.
+        if precision is None or abs(value - winner) >= Decimal(1).scaleb(-precision):
+            return None
+    return winner
 
 
 def _periods(root: ET.Element) -> dict[str, date]:
