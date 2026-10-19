@@ -32,13 +32,10 @@ def parse(xhtml: bytes, tag_map=None) -> list[ReportFact]:
 # --- Fixturen ----------------------------------------------------------------
 
 
-def test_sample_gives_revenue_and_result_for_every_year():
-    """Flerårsöversikten ger 4 års omsättning, resultaträkningen 2 års resultat.
-    Omsättningen står två gånger för de två senaste åren, med samma värde."""
+def test_sample_gives_revenue_and_result_from_the_income_statement():
+    """Resultaträkningen ger två år. Flerårsöversiktens fyra år läses inte."""
     tag_map = SourcesConfig.load(REPO_ROOT / "sources.yaml").bolagsverket.tag_map
     assert parse(SAMPLE.read_bytes(), tag_map) == [
-        ReportFact(date(2023, 4, 30), "revenue", 3_912_040),
-        ReportFact(date(2024, 4, 30), "revenue", 4_105_220),
         ReportFact(date(2025, 4, 30), "net_result", -48_210),
         ReportFact(date(2025, 4, 30), "revenue", 4_388_615),
         ReportFact(date(2026, 4, 30), "net_result", 126_455),
@@ -202,6 +199,83 @@ def test_conflicting_duplicates_give_no_value(caplog):
     """Hellre en lucka än att gissa vilken siffra som stämmer."""
     assert values(report(fact("4 702 330"), fact("4 702 331"))) == []
     assert "olika värden" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("rounded", "exact_decimals"),
+    [
+        ("211", "INF"),  # flerårsöversikt i tkr, resultaträkning i kr (verklig rapport)
+        ("211", "0"),
+        ("212", "0"),  # avrundat uppåt
+    ],
+)
+def test_most_precise_duplicate_wins_when_the_rounded_one_agrees(rounded, exact_decimals):
+    tkr = fact(rounded, scale="3", decimals="-3")
+    kr = fact("211 499", decimals=exact_decimals)
+    assert values(report(tkr, kr)) == [211_499]
+    assert values(report(kr, tkr)) == [211_499]  # ordningen i dokumentet spelar ingen roll
+
+
+@pytest.mark.parametrize(
+    "markup",
+    [
+        # tkr-siffran ligger mer än en enhet från kronorna: något stämmer inte.
+        (fact("213", scale="3", decimals="-3"), fact("211 499")),
+        (fact("210", scale="3", decimals="-3"), fact("211 499")),
+        # De mest exakta skiljer sig, även om tkr-siffran passar båda.
+        (fact("211", scale="3", decimals="-3"), fact("211 499"), fact("211 500")),
+        # Utan decimals vet vi inte hur siffran avrundats.
+        (fact("211", scale="3", decimals=None), fact("211 499")),
+    ],
+)
+def test_rounded_duplicate_that_does_not_agree_gives_no_value(markup, caplog):
+    assert values(report(*markup)) == []
+    assert "olika värden" in caplog.text
+
+
+def test_multi_year_overview_is_never_read(caplog):
+    """Verkliga rapporter: tkr-text med scale="0" (415 kr) och kr-text med scale="3"."""
+    xhtml = report(
+        "<h2>Flerårsöversikt (Tkr)</h2>",
+        fact("415", decimals="INF"),
+        fact("415 038", scale="3", decimals="-3"),
+        "<h2>Resultaträkning</h2>",
+        fact("415 038"),
+    )
+    assert values(xhtml) == [415_038]
+    assert "olika värden" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "<h2>Flerårsöversikt</h2>",
+        "<p><b>FLERÅRSÖVERSIKT</b></p>",
+        "<p>Utveckling av företagets verksamhet, resultat och ställning</p>",
+        "<div><span>Flerårsjämförelse</span> (belopp i tkr)</div>",
+    ],
+)
+def test_overview_without_a_later_heading_gives_no_value(heading):
+    assert values(report(heading, fact("4 702 330"))) == []
+
+
+@pytest.mark.parametrize(
+    "after",
+    [
+        "<h2>Resultaträkning</h2>",
+        "<h3>Förändringar i eget kapital</h3>",
+        "<p><span>Noter</span></p>",
+        "<p><span>Sida 3</span>Balansräkning</p>",  # rubriken står efter ett element
+    ],
+)
+def test_next_heading_ends_the_overview(after):
+    assert values(report("<h2>Flerårsöversikt</h2>", after, fact("4 702 330"))) == [4_702_330]
+
+
+def test_text_that_mentions_the_overview_is_not_a_heading():
+    long_text = "<p>" + "Beloppen i flerårsöversikten visas i tkr. " * 3 + "</p>"
+    assert values(report(long_text, fact("4 702 330"))) == [4_702_330]
+    assert values(report("<p>Se flerårsöversikt</p>", fact("4 702 330"))) == [4_702_330]
 
 
 def test_tags_outside_the_tag_map_are_ignored():

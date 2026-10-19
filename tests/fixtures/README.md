@@ -137,8 +137,8 @@ räkenskapsår (1 maj–30 april).
 
 | Vad | Varför det finns |
 |---|---|
-| Nettoomsättning för 4 år i flerårsöversikten | En rapport täcker fler än 3 år |
-| Nettoomsättning igen i resultaträkningen, samma värden | Dubbletter blir ett värde |
+| Nettoomsättning för 4 år i flerårsöversikten | Flerårsöversikten läses aldrig (D35) |
+| Nettoomsättning och Årets resultat för 2 år i resultaträkningen | Det är dessa värden som sparas |
 | Årets resultat 2024/25 med `sign="-"` och ett `-` före taggen | Bara `sign` avgör tecknet |
 | `AretsResultatEgetKapital` och `Aktiekapital` (balansdag) | Liknande taggnamn blandas inte ihop; instant-kontext |
 | Soliditet i procent | Fel enhet hoppas över |

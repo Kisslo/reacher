@@ -106,7 +106,7 @@ def zipped(**files: bytes) -> bytes:
 
 REPORTS = {
     "FIKTIV-T114-2026": SAMPLE.read_bytes(),
-    # Omsättningen 2024 skiljer sig från jämförelsetalet i 2026 års rapport (4 105 220).
+    # Omsättningen 2024 skiljer sig från 2026 års flerårsöversikt (4 105 220).
     "FIKTIV-T114-2024": small_report(FY24, 4_100_000, 51_000),
     "FIKTIV-T114-2025": small_report(FY25, 4_388_615, -48_210),
     "FIKTIV-T114-2023": small_report(date(2023, 4, 30), 3_912_040, 22_000),
@@ -253,15 +253,16 @@ def test_source_satisfies_the_protocol():
 
 
 def test_first_run_gets_three_years_and_newest_report_wins():
-    """2026 års rapport täcker 2025 helt (hämtas inte) men 2024 bara med omsättning,
-    så 2024 års rapport hämtas för resultatet. 2023 ligger utanför de 3 åren."""
+    """2026 års rapport täcker 2025 helt (hämtas inte) men inte 2024: flerårsöversikten
+    läses inte, så 2024 års rapport hämtas. 2023 ligger utanför de 3 åren."""
     api = FakeApi()
     assert facts(api) == {
         (FY26, "revenue", 4_702_330, "FIKTIV-T114-2026"),
         (FY26, "net_result", 126_455, "FIKTIV-T114-2026"),
-        (FY25, "revenue", 4_388_615, "FIKTIV-T114-2026"),
+        (FY25, "revenue", 4_388_615, "FIKTIV-T114-2026"),  # jämförelsetalet (D36)
         (FY25, "net_result", -48_210, "FIKTIV-T114-2026"),
-        (FY24, "revenue", 4_105_220, "FIKTIV-T114-2026"),  # nyaste rapporten vinner (D36)
+        # Inte 4 105 220 ur 2026 års flerårsöversikt: den läses aldrig.
+        (FY24, "revenue", 4_100_000, "FIKTIV-T114-2024"),
         (FY24, "net_result", 51_000, "FIKTIV-T114-2024"),
     }
     assert api.downloads == ["FIKTIV-T114-2026", "FIKTIV-T114-2024"]
@@ -283,7 +284,6 @@ def test_a_new_report_is_downloaded_and_its_comparison_years_win():
         (FY26, "net_result"),
         (FY25, "revenue"),
         (FY25, "net_result"),
-        (FY24, "revenue"),
     }
 
 
